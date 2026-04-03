@@ -93,13 +93,24 @@ st.markdown(f"""
     .stButton>button {{width: 100%; border-radius: 8px; font-weight: bold;}}
     
     /* สไตล์ปุ่มสีแดงสำหรับ "ลบรายการ" */
-    div[data-testid="stVerticalBlock"] div[data-testid="stVerticalBlock"] .stButton>button {{
+    .red-btn .stButton>button {{
         background-color: #FF4B4B;
         color: white;
         border: none;
     }}
-    div[data-testid="stVerticalBlock"] div[data-testid="stVerticalBlock"] .stButton>button:hover {{
+    .red-btn .stButton>button:hover {{
         background-color: #D32F2F;
+        color: white;
+    }}
+
+    /* สไตล์ปุ่มสีเขียวสำหรับ "เพิ่มรายการใหม่" */
+    .green-btn .stButton>button {{
+        background-color: #28A745;
+        color: white;
+        border: none;
+    }}
+    .green-btn .stButton>button:hover {{
+        background-color: #218838;
         color: white;
     }}
 
@@ -123,7 +134,6 @@ st.markdown(f"""
 st.title("ระบบออกใบเสนอราคา")
 
 with st.container(border=True):
-    # ปรับปรุงส่วนเลือกชื่อลูกค้า
     customer_select = st.selectbox("ชื่อลูกค้า", [
         "",
         "บริษัท รีไซเคิล เอ็นจิเนียริ่ง จำกัด",
@@ -133,13 +143,11 @@ with st.container(border=True):
         "ตัวเลือกอื่นๆ"
     ])
     
-    # หากเลือก ตัวเลือกอื่นๆ จะมีช่องให้พิมพ์เอง
     if customer_select == "ตัวเลือกอื่นๆ":
         customer = st.text_input("ระบุชื่อลูกค้า", placeholder="พิมพ์ชื่อบริษัท/ชื่อลูกค้าที่นี่...")
     else:
         customer = customer_select
 
-    # วันที่รูปแบบ 03/04/2026
     date_val = st.date_input("วันที่", value=datetime.now(), format="DD/MM/YYYY")
     date_str = date_val.strftime("%d/%m/%Y")
 
@@ -160,7 +168,6 @@ st.write("---")
 total_all = 0
 data_rows = []
 
-# แสดงรายการสินค้า
 for i, row_id in enumerate(st.session_state.rows):
     st.markdown(f'<div class="item-label">รายการที่ {i+1}</div>', unsafe_allow_html=True)
     with st.container(border=True):
@@ -181,10 +188,16 @@ for i, row_id in enumerate(st.session_state.rows):
             total_all += total_row
             data_rows.append({"item": item_name, "qty": qty, "unit": unit, "price": price, "total": total_row})
 
+        # ครอบด้วยคลาสสำหรับปุ่มสีแดง
+        st.markdown('<div class="red-btn">', unsafe_allow_html=True)
         st.button("ลบรายการนี้", key=f"del_{row_id}", on_click=remove_row, args=(row_id,))
+        st.markdown('</div>', unsafe_allow_html=True)
     st.write("")
 
+# ครอบด้วยคลาสสำหรับปุ่มสีเขียว
+st.markdown('<div class="green-btn">', unsafe_allow_html=True)
 st.button("เพิ่มรายการใหม่", on_click=add_row)
+st.markdown('</div>', unsafe_allow_html=True)
 
 st.write("---")
 note = st.text_area("หมายเหตุ")
@@ -204,7 +217,6 @@ def create_pdf():
     c.setFont(FONT_MAIN, 10)
     c.setFillColorRGB(*BLUE_THEME)
     
-    # วางชื่อลูกค้า (ไม่ว่าจะเป็นจากการเลือกหรือพิมพ์เอง)
     c.drawString(X_NAME, Y_NAME, customer)
     c.drawString(X_DATE, Y_DATE, date_str)
 
