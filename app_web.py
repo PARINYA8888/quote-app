@@ -8,19 +8,14 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
-import urllib.parse
+import base64
 
-# ======================
-# CONFIG
-# ======================
 st.set_page_config(page_title="ใบเสนอราคา", layout="wide")
 
 BASE_DIR = os.path.dirname(__file__)
 pdfmetrics.registerFont(TTFont('Sarabun', os.path.join(BASE_DIR, 'Sarabun-Regular.ttf')))
 
-# ======================
-# X Y
-# ======================
+# ===== ตำแหน่ง =====
 X_NAME, Y_NAME = 82, 696.3
 X_DATE, Y_DATE = 455, 696.3
 X_NO, X_ITEM, X_QTY, X_UNIT, X_PRICE, X_TOTAL = 29, 60, 389, 432.2, 513.6, 580
@@ -30,9 +25,6 @@ X_SUM_TEXT, Y_SUM_TEXT = 830, 170
 X_NOTE, Y_NOTE = 85, 192
 ITEM_WIDTH, NOTE_WIDTH = 300, 275
 
-# ======================
-# DATA
-# ======================
 customer_list = [
     "บริษัท รีไซเคิล เอ็นจิเนียริ่ง จำกัด",
     "บริษัท ซันเจียง เคมิคอล ไฟเบอร์ (ประเทศไทย) จำกัด",
@@ -42,9 +34,6 @@ customer_list = [
 
 unit_list = ["ชุด", "ชิ้น", "ตัว", "อัน"]
 
-# ======================
-# TOOL
-# ======================
 def format_number(n): return f"{n:,.2f}"
 
 def thai_baht(num):
@@ -68,15 +57,10 @@ def thai_baht(num):
     txt = read(baht)+"บาท"
     return txt+"ถ้วน" if satang==0 else txt+read(satang)+"สตางค์"
 
-# ======================
-# SESSION
-# ======================
+# session
 if "rows" not in st.session_state:
     st.session_state.rows = [{}]
 
-# ======================
-# UI
-# ======================
 st.title("📄 ใบเสนอราคา")
 
 name = st.selectbox("ลูกค้า", [""]+customer_list)
@@ -85,20 +69,16 @@ if custom: name = custom
 
 date = st.text_input("วันที่", value=datetime.now().strftime("%d/%m/%Y"))
 
-# ======================
-# TABLE
-# ======================
 total_all = 0
 
 for i, row in enumerate(st.session_state.rows):
-
     cols = st.columns([1,4,1,1,2,2,1])
 
     cols[0].write(i+1)
     item = cols[1].text_input("รายการ", key=f"item{i}")
-    qty = cols[2].number_input("จำนวน", key=f"qty{i}", step=1.0, format="%d")
+    qty = cols[2].number_input("จำนวน", key=f"qty{i}", step=1, min_value=0)
     unit = cols[3].selectbox("หน่วย", unit_list, key=f"unit{i}")
-    price = cols[4].number_input("ราคา", key=f"price{i}")
+    price = cols[4].number_input("ราคา", key=f"price{i}", min_value=0.0)
 
     total = qty * price
     total_all += total
@@ -113,22 +93,16 @@ if st.button("➕ เพิ่มรายการ"):
     st.session_state.rows.append({})
     st.rerun()
 
-# ======================
-# TOTAL
-# ======================
 st.markdown("---")
 st.write("💰 รวม:", format_number(total_all))
 st.write("🧾", thai_baht(total_all))
 
 note = st.text_input("หมายเหตุ")
 
-# ======================
-# PDF
-# ======================
+# ===== PDF =====
 if st.button("📄 สร้าง PDF"):
 
-    safe_date = date.replace("/", "-")
-    filename = f"ใบเสนอราคา_{name}_{safe_date}.pdf"
+    filename = f"ใบเสนอราคา_{name}_{date.replace('/','-')}.pdf"
     path = os.path.join(BASE_DIR, filename)
 
     c = canvas.Canvas(path, pagesize=A4)
@@ -177,30 +151,35 @@ if st.button("📄 สร้าง PDF"):
 
     c.save()
 
-    st.success("สร้าง PDF สำเร็จ!")
-
-    # 🔥 LINE SHARE (มีไอคอน)
-    message = f"ใบเสนอราคา {name} วันที่ {date}"
-    line_url = "https://line.me/R/msg/text/?{}".format(urllib.parse.quote(message))
-
-    st.markdown(
-        f"""
-        <a href="{line_url}" target="_blank">
-            <button style="
-                background-color:#06C755;
-                color:white;
-                padding:12px 20px;
-                border:none;
-                border-radius:8px;
-                font-size:16px;
-                font-weight:bold;
-                cursor:pointer;">
-                🟢 แชร์ไป LINE
-            </button>
-        </a>
-        """,
-        unsafe_allow_html=True
-    )
-
+    # ===== แสดง PDF =====
     with open(path, "rb") as f:
-        st.download_button("📥 ดาวน์โหลด PDF", f, filename)
+        pdf_bytes = f.read()
+
+    base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
+
+    st.markdown("## 📄 ตัวอย่างใบเสนอราคา")
+    st.markdown(f'''
+        <iframe src="data:application/pdf;base64,{base64_pdf}" 
+        width="100%" height="700"></iframe>
+    ''', unsafe_allow_html=True)
+
+    # ===== ปุ่มแชร์ (มือถือ/Browser Share) =====
+    st.markdown("""
+    <script>
+    function shareFile() {
+        alert("📱 กดปุ่มแชร์ของมือถือ (ด้านล่าง PDF) หรือดาวน์โหลดแล้วแชร์ได้เลย");
+    }
+    </script>
+    <button onclick="shareFile()" style="
+        background:#007BFF;
+        color:white;
+        padding:12px;
+        border:none;
+        border-radius:8px;
+        font-size:16px;">
+        📤 แชร์
+    </button>
+    """, unsafe_allow_html=True)
+
+    # ===== DOWNLOAD =====
+    st.download_button("📥 ดาวน์โหลด PDF", pdf_bytes, file_name=filename)
