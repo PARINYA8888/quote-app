@@ -29,7 +29,7 @@ else:
 BLUE_THEME = (0.2, 0.5, 1)
 
 # ==========================================
-# PDF POSITIONS (พิกัด FIX 100%)
+# PDF POSITIONS
 # ==========================================
 X_NAME, Y_NAME = 82, 696.3
 X_DATE, Y_DATE = 455, 696.3
@@ -72,7 +72,7 @@ def thai_baht(num):
     except: return ""
 
 # ==========================================
-# PWA & STYLING
+# PWA & CSS CUSTOM (ปรับปุ่มลบเป็นสีแดง)
 # ==========================================
 manifest_json = """
 {
@@ -92,20 +92,26 @@ st.markdown(f"""
     [data-testid="stSidebar"] {{display: none;}}
     .stButton>button {{width: 100%; border-radius: 8px; font-weight: bold;}}
     
-    /* เน้นแถบรายการที่ 1 ให้ชัดเจน */
-    .item-header-bar {{
+    /* สไตล์ปุ่มสีแดงสำหรับ "ลบรายการ" */
+    div[data-testid="stVerticalBlock"] div[data-testid="stVerticalBlock"] .stButton>button {{
+        background-color: #FF4B4B;
+        color: white;
+        border: none;
+    }}
+    div[data-testid="stVerticalBlock"] div[data-testid="stVerticalBlock"] .stButton>button:hover {{
+        background-color: #D32F2F;
+        color: white;
+    }}
+
+    /* แถบรายการที่ 1 ชัดเจน */
+    .item-label {{
         background-color: #1E3A8A;
         color: white;
-        padding: 12px;
+        padding: 10px;
         border-radius: 8px 8px 0px 0px;
         font-weight: bold;
         text-align: center;
         font-size: 18px;
-    }}
-    .item-container {{
-        border: 2px solid #1E3A8A;
-        border-radius: 8px;
-        margin-bottom: 20px;
     }}
 </style>
 <link rel="manifest" href="data:application/json;base64,{manifest_b64}">
@@ -116,7 +122,6 @@ st.markdown(f"""
 # ==========================================
 st.title("ระบบออกใบเสนอราคา")
 
-# ส่วนข้อมูลลูกค้าและวันที่
 with st.container(border=True):
     customer = st.selectbox("ชื่อลูกค้า", [
         "",
@@ -125,28 +130,37 @@ with st.container(border=True):
         "UFM(THAILAND) CO.,LTD.",
         "สหกรณ์กองทุนสวนยางอำเภอบ่อทอง จำกัด"
     ])
-    # วันที่รูปแบบ DD/MM/YYYY
+    # วันที่รูปแบบ 03/04/2026
     date_val = st.date_input("วันที่", value=datetime.now(), format="DD/MM/YYYY")
     date_str = date_val.strftime("%d/%m/%Y")
 
 if "rows" not in st.session_state:
-    st.session_state.rows = [{}]
+    st.session_state.rows = [0]  # เก็บเป็น ID ของแถว
 
+if "row_counter" not in st.session_state:
+    st.session_state.row_counter = 1
+
+def add_row():
+    st.session_state.rows.append(st.session_state.row_counter)
+    st.session_state.row_counter += 1
+
+def remove_row(row_id):
+    st.session_state.rows.remove(row_id)
+
+st.write("---")
 total_all = 0
 data_rows = []
 
-st.write("---")
-
-# ส่วนรายการสินค้า
-for i, row in enumerate(st.session_state.rows):
-    st.markdown(f'<div class="item-header-bar">รายการที่ {i+1}</div>', unsafe_allow_html=True)
+# แสดงรายการสินค้า
+for i, row_id in enumerate(st.session_state.rows):
+    st.markdown(f'<div class="item-label">รายการที่ {i+1}</div>', unsafe_allow_html=True)
     with st.container(border=True):
-        item_name = st.text_input("ชื่อรายการ", key=f"name_{i}", placeholder="รายละเอียดงานหรือสินค้า")
+        item_name = st.text_input("ชื่อรายการ", key=f"name_{row_id}", placeholder="ระบุรายละเอียด...")
         
         c1, c2, c3 = st.columns([1, 1, 1.2])
-        qty = c1.text_input("จำนวน", key=f"qty_{i}")
-        unit = c2.selectbox("หน่วย", ["", "ชุด", "ชิ้น", "ตัว", "อัน"], key=f"unit_{i}")
-        price = c3.text_input("ราคาต่อหน่วย", key=f"price_{i}")
+        qty = c1.text_input("จำนวน", key=f"qty_{row_id}")
+        unit = c2.selectbox("หน่วย", ["", "ชุด", "ชิ้น", "ตัว", "อัน"], key=f"unit_{row_id}")
+        price = c3.text_input("ราคาต่อหน่วย", key=f"price_{row_id}")
 
         try:
             total_row = float(qty) * float(price) if qty and price else 0
@@ -154,26 +168,25 @@ for i, row in enumerate(st.session_state.rows):
             total_row = 0
             
         if total_row > 0:
-            st.markdown(f"**รวมเงินรายการนี้: {format_number(total_row)} บาท**")
+            st.write(f"**รวมเงินรายการนี้: {format_number(total_row)} บาท**")
             total_all += total_row
             data_rows.append({"item": item_name, "qty": qty, "unit": unit, "price": price, "total": total_row})
 
-        if st.button("ลบรายการนี้", key=f"del_{i}"):
-            st.session_state.rows.pop(i)
-            st.rerun()
+        # ปุ่มลบสีแดง
+        st.button("ลบรายการนี้", key=f"del_{row_id}", on_click=remove_row, args=(row_id,))
     st.write("")
 
-st.button("เพิ่มรายการใหม่", on_click=lambda: st.session_state.rows.append({}), type="secondary")
+# ปุ่มเพิ่มรายการสีปกติ
+st.button("เพิ่มรายการใหม่", on_click=add_row)
 
-# ส่วนสรุปผล
 st.write("---")
 note = st.text_area("หมายเหตุ")
 
-st.markdown(f"<h2 style='text-align: center; color: #3380FF;'>ยอดเงินรวม: {format_number(total_all)} บาท</h2>", unsafe_allow_html=True)
+st.markdown(f"<h2 style='text-align: center; color: #3380FF;'>ยอดรวมทั้งสิ้น: {format_number(total_all)} บาท</h2>", unsafe_allow_html=True)
 st.markdown(f"<p style='text-align: center;'>({thai_baht(total_all)})</p>", unsafe_allow_html=True)
 
 # ==========================================
-# PDF GENERATION & EXPORT
+# PDF GENERATION
 # ==========================================
 def create_pdf():
     buf = io.BytesIO()
@@ -213,15 +226,16 @@ def create_pdf():
     buf.seek(0)
     return buf
 
-if st.button("บันทึกและสร้าง PDF", type="primary"):
+if st.button("สร้างและแชร์ PDF", type="primary"):
     if not customer:
-        st.error("กรุณาระบุชื่อลูกค้า")
+        st.error("กรุณาเลือกชื่อลูกค้า")
+    elif total_all == 0:
+        st.error("กรุณากรอกข้อมูลรายการ")
     else:
         final_pdf = create_pdf()
-        st.success("สร้างไฟล์สำเร็จ! กดปุ่มด้านล่างเพื่อแชร์เข้า LINE")
         st.download_button(
-            label="แชร์ไฟล์ PDF",
+            label="กดที่นี่เพื่อโหลด/ส่งไฟล์ PDF",
             data=final_pdf,
-            file_name=f"ใบเสนอราคา_{customer}_{date_val.strftime('%d%m%y')}.pdf",
+            file_name=f"ใบเสนอราคา_{customer}.pdf",
             mime="application/pdf"
         )
