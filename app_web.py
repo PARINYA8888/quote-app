@@ -57,9 +57,12 @@ def thai_baht(num):
     txt = read(baht)+"บาท"
     return txt+"ถ้วน" if satang==0 else txt+read(satang)+"สตางค์"
 
-# session
+# ===== session =====
 if "rows" not in st.session_state:
     st.session_state.rows = [{}]
+
+if "pdf_data" not in st.session_state:
+    st.session_state.pdf_data = None
 
 st.title("📄 ใบเสนอราคา")
 
@@ -71,14 +74,31 @@ date = st.text_input("วันที่", value=datetime.now().strftime("%d/%m/
 
 total_all = 0
 
-for i, row in enumerate(st.session_state.rows):
+# ===== rows =====
+for i in range(len(st.session_state.rows)):
     cols = st.columns([1,4,1,1,2,2,1])
 
     cols[0].write(i+1)
     item = cols[1].text_input("รายการ", key=f"item{i}")
-    qty = cols[2].number_input("จำนวน", key=f"qty{i}", step=1, min_value=0)
+
+    # ✅ ไม่มีค่าเริ่มต้น
+    qty = cols[2].number_input(
+        "จำนวน",
+        key=f"qty{i}",
+        value=None,
+        placeholder="กรอก",
+        format="%.0f"
+    ) or 0
+
     unit = cols[3].selectbox("หน่วย", unit_list, key=f"unit{i}")
-    price = cols[4].number_input("ราคา", key=f"price{i}", min_value=0.0)
+
+    price = cols[4].number_input(
+        "ราคา",
+        key=f"price{i}",
+        value=None,
+        placeholder="กรอก",
+        format="%.2f"
+    ) or 0
 
     total = qty * price
     total_all += total
@@ -99,7 +119,7 @@ st.write("🧾", thai_baht(total_all))
 
 note = st.text_input("หมายเหตุ")
 
-# ===== PDF =====
+# ===== CREATE PDF =====
 if st.button("📄 สร้าง PDF"):
 
     filename = f"ใบเสนอราคา_{name}_{date.replace('/','-')}.pdf"
@@ -128,9 +148,9 @@ if st.button("📄 สร้าง PDF"):
         item = st.session_state.get(f"item{i}", "")
         if not item: continue
 
-        qty = st.session_state.get(f"qty{i}", 0)
+        qty = st.session_state.get(f"qty{i}", 0) or 0
         unit = st.session_state.get(f"unit{i}", "")
-        price = st.session_state.get(f"price{i}", 0)
+        price = st.session_state.get(f"price{i}", 0) or 0
         total = qty * price
 
         p = Paragraph(item, style)
@@ -138,10 +158,10 @@ if st.button("📄 สร้าง PDF"):
         p.drawOn(c, X_ITEM, y-h+10)
 
         c.drawCentredString(X_NO, y, str(i+1))
-        c.drawCentredString(X_QTY, y, str(int(qty)))
-        c.drawCentredString(X_UNIT, y, unit)
-        c.drawRightString(X_PRICE, y, format_number(price))
-        c.drawRightString(X_TOTAL, y, format_number(total))
+        if qty: c.drawCentredString(X_QTY, y, str(int(qty)))
+        if unit: c.drawCentredString(X_UNIT, y, unit)
+        if price: c.drawRightString(X_PRICE, y, format_number(price))
+        if total: c.drawRightString(X_TOTAL, y, format_number(total))
 
         y -= max(h,20)
 
@@ -151,35 +171,21 @@ if st.button("📄 สร้าง PDF"):
 
     c.save()
 
-    # ===== แสดง PDF =====
+    # ===== โหลด PDF เข้า memory =====
     with open(path, "rb") as f:
-        pdf_bytes = f.read()
+        st.session_state.pdf_data = f.read()
 
-    base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
+# ===== SHOW PDF ทันที =====
+if st.session_state.pdf_data:
+    b64 = base64.b64encode(st.session_state.pdf_data).decode()
 
-    st.markdown("## 📄 ตัวอย่างใบเสนอราคา")
-    st.markdown(f'''
-        <iframe src="data:application/pdf;base64,{base64_pdf}" 
-        width="100%" height="700"></iframe>
-    ''', unsafe_allow_html=True)
-
-    # ===== ปุ่มแชร์ (มือถือ/Browser Share) =====
-    st.markdown("""
-    <script>
-    function shareFile() {
-        alert("📱 กดปุ่มแชร์ของมือถือ (ด้านล่าง PDF) หรือดาวน์โหลดแล้วแชร์ได้เลย");
-    }
-    </script>
-    <button onclick="shareFile()" style="
-        background:#007BFF;
-        color:white;
-        padding:12px;
-        border:none;
-        border-radius:8px;
-        font-size:16px;">
-        📤 แชร์
-    </button>
+    st.subheader("📄 Preview")
+    st.markdown(f"""
+        <iframe src="data:application/pdf;base64,{b64}" width="100%" height="600"></iframe>
     """, unsafe_allow_html=True)
 
-    # ===== DOWNLOAD =====
-    st.download_button("📥 ดาวน์โหลด PDF", pdf_bytes, file_name=filename)
+    st.markdown(f"""
+    <a href="data:application/pdf;base64,{b64}" target="_blank">
+        👉 เปิดเต็มหน้าจอ
+    </a>
+    """, unsafe_allow_html=True)
