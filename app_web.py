@@ -12,7 +12,7 @@ import base64
 
 # ==========================================
 # CONFIGURATION & THEME
-# ==========================================
+# ==========================
 st.set_page_config(
     page_title="ระบบออกใบเสนอราคา",
     layout="centered",
@@ -93,25 +93,23 @@ st.markdown(f"""
     .stButton>button {{width: 100%; border-radius: 8px; font-weight: bold;}}
     
     /* สไตล์ปุ่มสีแดงสำหรับ "ลบรายการ" */
-    .red-btn .stButton>button {{
-        background-color: #FF4B4B;
-        color: white;
-        border: none;
+    .red-btn button {{
+        background-color: #FF4B4B !important;
+        color: white !important;
+        border: none !important;
     }}
-    .red-btn .stButton>button:hover {{
-        background-color: #D32F2F;
-        color: white;
+    .red-btn button:hover {{
+        background-color: #D32F2F !important;
     }}
 
     /* สไตล์ปุ่มสีเขียวสำหรับ "เพิ่มรายการใหม่" */
-    .green-btn .stButton>button {{
-        background-color: #28A745;
-        color: white;
-        border: none;
+    .green-btn button {{
+        background-color: #28A745 !important;
+        color: white !important;
+        border: none !important;
     }}
-    .green-btn .stButton>button:hover {{
-        background-color: #218838;
-        color: white;
+    .green-btn button:hover {{
+        background-color: #218838 !important;
     }}
 
     /* แถบรายการที่ 1 ชัดเจน */
@@ -188,13 +186,11 @@ for i, row_id in enumerate(st.session_state.rows):
             total_all += total_row
             data_rows.append({"item": item_name, "qty": qty, "unit": unit, "price": price, "total": total_row})
 
-        # ครอบด้วยคลาสสำหรับปุ่มสีแดง
         st.markdown('<div class="red-btn">', unsafe_allow_html=True)
         st.button("ลบรายการนี้", key=f"del_{row_id}", on_click=remove_row, args=(row_id,))
         st.markdown('</div>', unsafe_allow_html=True)
     st.write("")
 
-# ครอบด้วยคลาสสำหรับปุ่มสีเขียว
 st.markdown('<div class="green-btn">', unsafe_allow_html=True)
 st.button("เพิ่มรายการใหม่", on_click=add_row)
 st.markdown('</div>', unsafe_allow_html=True)
