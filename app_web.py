@@ -12,7 +12,7 @@ import base64
 
 # ==========================================
 # CONFIGURATION & THEME
-# ==========================
+# ==========================================
 st.set_page_config(
     page_title="ระบบออกใบเสนอราคา",
     layout="centered",
@@ -92,23 +92,23 @@ st.markdown(f"""
     [data-testid="stSidebar"] {{display: none;}}
     .stButton>button {{width: 100%; border-radius: 8px; font-weight: bold;}}
     
-    /* สไตล์ปุ่มสีแดงสำหรับ "ลบรายการ" */
-    .red-btn button {{
+    /* บังคับปุ่มลบให้เป็นสีแดง */
+    div:has(span#red-btn) + div button {{
         background-color: #FF4B4B !important;
         color: white !important;
         border: none !important;
     }}
-    .red-btn button:hover {{
+    div:has(span#red-btn) + div button:hover {{
         background-color: #D32F2F !important;
     }}
 
-    /* สไตล์ปุ่มสีเขียวสำหรับ "เพิ่มรายการใหม่" */
-    .green-btn button {{
+    /* บังคับปุ่มเพิ่มรายการให้เป็นสีเขียว */
+    div:has(span#green-btn) + div button {{
         background-color: #28A745 !important;
         color: white !important;
         border: none !important;
     }}
-    .green-btn button:hover {{
+    div:has(span#green-btn) + div button:hover {{
         background-color: #218838 !important;
     }}
 
@@ -163,6 +163,7 @@ def remove_row(row_id):
     st.session_state.rows.remove(row_id)
 
 st.write("---")
+st.markdown("### รายการสินค้า/งาน")
 total_all = 0
 data_rows = []
 
@@ -186,14 +187,12 @@ for i, row_id in enumerate(st.session_state.rows):
             total_all += total_row
             data_rows.append({"item": item_name, "qty": qty, "unit": unit, "price": price, "total": total_row})
 
-        st.markdown('<div class="red-btn">', unsafe_allow_html=True)
+        st.markdown('<span id="red-btn"></span>', unsafe_allow_html=True)
         st.button("ลบรายการนี้", key=f"del_{row_id}", on_click=remove_row, args=(row_id,))
-        st.markdown('</div>', unsafe_allow_html=True)
     st.write("")
 
-st.markdown('<div class="green-btn">', unsafe_allow_html=True)
+st.markdown('<span id="green-btn"></span>', unsafe_allow_html=True)
 st.button("เพิ่มรายการใหม่", on_click=add_row)
-st.markdown('</div>', unsafe_allow_html=True)
 
 st.write("---")
 note = st.text_area("หมายเหตุ")
