@@ -9,12 +9,13 @@ from datetime import datetime
 import os
 import io
 import base64
+from PIL import Image
 
 # ==========================================
 # CONFIGURATION & THEME
 # ==========================================
 st.set_page_config(
-    page_title="ระบบออกใบเสนอราคา",
+    page_title="ใบเสนอราคา - โรงกลึงช่างมนูญบ่อทอง",
     layout="centered",
     initial_sidebar_state="collapsed",
 )
@@ -76,8 +77,8 @@ def thai_baht(num):
 # ==========================================
 manifest_json = """
 {
-  "name": "ระบบออกใบเสนอราคา",
-  "short_name": "QuoteApp",
+  "name": "ใบเสนอราคา - โรงกลึงช่างมนูญบ่อทอง",
+  "short_name": "MN_Quote",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -92,12 +93,10 @@ st.markdown(f"""
     [data-testid="stSidebar"] {{display: none;}}
     .stButton>button {{width: 100%; border-radius: 8px; font-weight: bold; transition: 0.3s;}}
     
-    /* ซ่อนปุ่ม +/- ของ st.number_input ทั้งหมดอย่างเด็ดขาด */
     [data-testid="stNumberInputStepUp"], [data-testid="stNumberInputStepDown"] {{
         display: none !important;
     }}
     
-    /* ซ่อนลูกศรใน input สำหรับเบราว์เซอร์ปกติ */
     input[type=number]::-webkit-inner-spin-button, 
     input[type=number]::-webkit-outer-spin-button {{ 
         -webkit-appearance: none; 
@@ -107,7 +106,6 @@ st.markdown(f"""
         -moz-appearance: textfield;
     }}
 
-    /* สไตล์ปุ่มลบรายการ (แดง) */
     div:has(span#red-btn) + div button {{
         background-color: #FF4B4B !important;
         color: white !important;
@@ -118,7 +116,6 @@ st.markdown(f"""
         color: #FF4B4B !important;
     }}
 
-    /* สไตล์ปุ่มเพิ่มรายการ (เขียว) */
     div:has(span#green-btn) + div button {{
         background-color: #28A745 !important;
         color: white !important;
@@ -129,7 +126,6 @@ st.markdown(f"""
         color: #28A745 !important;
     }}
 
-    /* แถบหัวข้อรายการ สีน้ำเงินเต็มช่อง */
     .item-label {{
         background-color: #1E3A8A;
         color: white;
@@ -142,6 +138,24 @@ st.markdown(f"""
         margin-top: 10px;
         box-shadow: 0px 2px 4px rgba(0,0,0,0.1);
     }}
+
+    /* สไตล์สำหรับส่วนหัวใหม่ */
+    .header-container {{
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+        gap: 10px;
+    }}
+    .header-logo {{
+        width: 30px;
+        height: 30px;
+    }}
+    .header-text {{
+        font-size: 24px; /* ขนาดเท่ากับ st.subheader */
+        font-weight: bold;
+        color: white;
+        margin: 0;
+    }}
 </style>
 <link rel="manifest" href="data:application/json;base64,{manifest_b64}">
 """, unsafe_allow_html=True)
@@ -149,7 +163,16 @@ st.markdown(f"""
 # ==========================================
 # UI MAIN
 # ==========================================
-st.title("ระบบออกใบเสนอราคา")
+# ส่วนหัวใหม่พร้อมโลโก้
+col_logo, col_text = st.columns([0.1, 0.9])
+with col_logo:
+    if os.path.exists("logo.png"):
+        logo_img = Image.open("logo.png")
+        st.image(logo_img, width=40)
+with col_text:
+    st.markdown(f'<p style="font-size: 24px; font-weight: bold; color: white; margin-top: 10px;">ใบเสนอราคาโรงกลึงช่างมนูญบ่อทอง</p>', unsafe_allow_html=True)
+
+st.write("") # เว้นบรรทัด
 
 with st.container(border=True):
     customer_select = st.selectbox("ชื่อลูกค้า", [
@@ -183,7 +206,7 @@ def remove_row(row_id):
     st.session_state.rows.remove(row_id)
 
 st.write("---")
-st.markdown("### รายละเอียดใบเสนอราคา")
+st.subheader("รายละเอียดใบเสนอราคา") # ขนาดตัวอักษร 24px
 total_all = 0
 data_rows = []
 
@@ -193,14 +216,8 @@ for i, row_id in enumerate(st.session_state.rows):
         item_name = st.text_input("ชื่อรายการ", key=f"name_{row_id}", placeholder="ระบุรายละเอียดงานหรือสินค้า...")
         
         c1, c2, c3 = st.columns([1, 1, 1.2])
-        
-        # จำนวน: บังคับเป็นจำนวนเต็ม (format="%d") ไม่มีทศนิยม
         qty = c1.number_input("จำนวน", min_value=1, value=None, step=1, format="%d", key=f"qty_{row_id}")
-        
-        # หน่วย: ตัวเลือกตามที่ระบุ
         unit = c2.selectbox("หน่วย", ["", "ชุด", "ตัว", "ชิ้น", "อัน"], key=f"unit_{row_id}")
-        
-        # ราคาต่อหน่วย: ไม่แสดงทศนิยม .00 ในหน้าเว็บ (format="%g") เพื่อความสะอาดตา
         price = c3.number_input("ราคาต่อหน่วย", min_value=0.0, value=None, format="%g", key=f"price_{row_id}")
 
         total_row = 0
@@ -210,7 +227,6 @@ for i, row_id in enumerate(st.session_state.rows):
         if total_row > 0:
             st.info(f"ยอดรวมรายการนี้: **{format_number(total_row)}** บาท")
             total_all += total_row
-            
             data_rows.append({"item": item_name, "qty": qty, "unit": unit, "price": price, "total": total_row})
 
         st.markdown('<span id="red-btn"></span>', unsafe_allow_html=True)
@@ -223,7 +239,6 @@ st.button("เพิ่มรายการใหม่", on_click=add_row)
 st.write("---")
 note = st.text_area("หมายเหตุ", placeholder="ระบุเงื่อนไขเพิ่มเติม (ถ้ามี)")
 
-# ดีไซน์ยอดรวมใหม่ ปรับขนาดเล็กลง ดูสบายตาขึ้น
 with st.container(border=True):
     st.markdown(f"<h4 style='text-align: center; color: #1E3A8A; margin-bottom: 5px; margin-top: 10px;'>ยอดรวมทั้งสิ้น: <span style='color: #3380FF;'>{format_number(total_all)} บาท</span></h4>", unsafe_allow_html=True)
     st.markdown(f"<p style='text-align: center; color: #666; font-size: 14px; margin-top: 0px;'>({thai_baht(total_all)})</p>", unsafe_allow_html=True)
