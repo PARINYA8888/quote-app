@@ -72,7 +72,7 @@ def thai_baht(num):
     except: return ""
 
 # ==========================================
-# PWA & CSS CUSTOM
+# PWA & CSS CUSTOM (รักษาความกระชับ)
 # ==========================================
 manifest_json = """
 {
@@ -92,12 +92,10 @@ st.markdown(f"""
     [data-testid="stSidebar"] {{display: none;}}
     .stButton>button {{width: 100%; border-radius: 8px; font-weight: bold; transition: 0.3s;}}
     
-    /* ซ่อนปุ่ม +/- ของ st.number_input ทั้งหมดอย่างเด็ดขาด */
     [data-testid="stNumberInputStepUp"], [data-testid="stNumberInputStepDown"] {{
         display: none !important;
     }}
     
-    /* ซ่อนลูกศรใน input สำหรับเบราว์เซอร์ปกติ */
     input[type=number]::-webkit-inner-spin-button, 
     input[type=number]::-webkit-outer-spin-button {{ 
         -webkit-appearance: none; 
@@ -107,7 +105,6 @@ st.markdown(f"""
         -moz-appearance: textfield;
     }}
 
-    /* สไตล์ปุ่มลบรายการ (แดง) */
     div:has(span#red-btn) + div button {{
         background-color: #FF4B4B !important;
         color: white !important;
@@ -118,7 +115,6 @@ st.markdown(f"""
         color: #FF4B4B !important;
     }}
 
-    /* สไตล์ปุ่มเพิ่มรายการ (เขียว) */
     div:has(span#green-btn) + div button {{
         background-color: #28A745 !important;
         color: white !important;
@@ -129,7 +125,6 @@ st.markdown(f"""
         color: #28A745 !important;
     }}
 
-    /* แถบหัวข้อรายการ สีน้ำเงินเต็มช่อง */
     .item-label {{
         background-color: #1E3A8A;
         color: white;
@@ -143,11 +138,6 @@ st.markdown(f"""
         box-shadow: 0px 2px 4px rgba(0,0,0,0.1);
     }}
 
-    /* -------------------------------------- */
-    /* CSS เพิ่มเติมสำหรับการบีบพื้นที่ (ชิดขึ้น) และขนาดหัวข้อ */
-    /* -------------------------------------- */
-    
-    /* ปรับขนาดตัวอักษรหัวข้อให้เท่ากัน 20px */
     .custom-header {{
         font-size: 20px !important;
         font-weight: bold !important;
@@ -156,24 +146,20 @@ st.markdown(f"""
         color: #FFFFFF;
     }}
 
-    /* ลด Padding ของคอนเทนเนอร์หลักของหน้า */
     .block-container {{
         padding-top: 1.5rem !important;
         padding-bottom: 1rem !important;
     }}
 
-    /* ลด Gap ระยะห่างระหว่างกล่องต่างๆ ของ Streamlit */
     div[data-testid="stVerticalBlock"] {{
         gap: 0.5rem !important;
     }}
 
-    /* ลด Padding ด้านในของกรอบสี่เหลี่ยม */
     div[data-testid="stBorderedContainer"] {{
         padding: 12px !important;
         margin-bottom: 0px !important;
     }}
 
-    /* ลดระยะเว้นบรรทัดสำหรับเส้นคั่น HR */
     hr {{
         margin-top: 10px !important;
         margin-bottom: 10px !important;
@@ -183,9 +169,30 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# UI MAIN
+# UI MAIN & DEFENSIVE STATE LOGIC
 # ==========================================
-# ใช้ CSS ครอบเพื่อให้ขนาดตัวอักษรเท่ากันเป๊ะๆ ตามต้องการ
+
+# ตรวจสอบและบังคับสร้าง Session State อย่างปลอดภัย (กันหลุด)
+if "rows" not in st.session_state:
+    st.session_state["rows"] = [0]
+if "row_counter" not in st.session_state:
+    st.session_state["row_counter"] = 1
+
+def add_row():
+    # ดึงข้อมูลออกแบบปลอดภัย
+    curr_rows = st.session_state.get("rows", [0])
+    curr_counter = st.session_state.get("row_counter", 1)
+    
+    curr_rows.append(curr_counter)
+    st.session_state["rows"] = curr_rows
+    st.session_state["row_counter"] = curr_counter + 1
+
+def remove_row(row_id):
+    curr_rows = st.session_state.get("rows", [0])
+    if row_id in curr_rows:
+        curr_rows.remove(row_id)
+    st.session_state["rows"] = curr_rows
+
 st.markdown('<p class="custom-header">ระบบออกใบเสนอราคา</p>', unsafe_allow_html=True)
 
 with st.container(border=True):
@@ -207,12 +214,14 @@ with st.container(border=True):
     date_str = date_val.strftime("%d/%m/%Y")
 
 st.write("---")
-# ใช้ CSS ตัวเดียวกัน ขนาดฟอนต์จะเท่ากับด้านบนเลยครับ
 st.markdown('<p class="custom-header">รายละเอียดใบเสนอราคา</p>', unsafe_allow_html=True)
 total_all = 0
 data_rows = []
 
-for i, row_id in enumerate(st.session_state.rows):
+# ดึงค่าลูปแบบดักจับความปลอดภัยสูง (นี่คือจุดที่เคยเอ๋อในภาพของคุณ Mu)
+active_rows = st.session_state.get("rows", [0])
+
+for i, row_id in enumerate(active_rows):
     with st.container(border=True):
         st.markdown(f'<div class="item-label">รายการที่ {i+1}</div>', unsafe_allow_html=True)
         item_name = st.text_input("ชื่อรายการ", key=f"name_{row_id}", placeholder="ระบุรายละเอียดงานหรือสินค้า...")
@@ -294,20 +303,16 @@ if st.button("สร้าง PDF", type="primary"):
     elif total_all == 0:
         st.error("กรุณากรอกข้อมูลรายการและราคาให้ครบถ้วนครับ")
     else:
-        # เจน PDF ออกมาเป็น Bytes
         final_pdf = create_pdf()
         pdf_bytes = final_pdf.getvalue()
         
-        # แปลงเป็น Base64 เพื่อยัดใส่ Iframe
         base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
         
         st.success("สร้างใบเสนอราคาสำเร็จ! คุณสามารถดูและสั่งพิมพ์/บันทึกจากหน้าต่างด้านล่างได้เลยครับ")
         
-        # แสดงผล PDF ในหน้าเว็บทันที
         pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600px" style="border: none; border-radius: 8px;"></iframe>'
         st.markdown(pdf_display, unsafe_allow_html=True)
         
-        # ใส่ปุ่มดาวน์โหลดเผื่อไว้ด้านล่าง (สำหรับคนใช้บนมือถือที่ Iframe อาจจะไม่แสดงผล)
         st.download_button(
             label="ดาวน์โหลดไฟล์ PDF เก็บไว้",
             data=pdf_bytes,
