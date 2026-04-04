@@ -9,13 +9,12 @@ from datetime import datetime
 import os
 import io
 import base64
-from PIL import Image
 
 # ==========================================
 # CONFIGURATION & THEME
 # ==========================================
 st.set_page_config(
-    page_title="ใบเสนอราคา - โรงกลึงช่างมนูญบ่อทอง",
+    page_title="ระบบออกใบเสนอราคา",
     layout="centered",
     initial_sidebar_state="collapsed",
 )
@@ -77,8 +76,8 @@ def thai_baht(num):
 # ==========================================
 manifest_json = """
 {
-  "name": "ใบเสนอราคา - โรงกลึงช่างมนูญบ่อทอง",
-  "short_name": "MN_Quote",
+  "name": "ระบบออกใบเสนอราคา",
+  "short_name": "QuoteApp",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -93,10 +92,12 @@ st.markdown(f"""
     [data-testid="stSidebar"] {{display: none;}}
     .stButton>button {{width: 100%; border-radius: 8px; font-weight: bold; transition: 0.3s;}}
     
+    /* ซ่อนปุ่ม +/- ของ st.number_input ทั้งหมดอย่างเด็ดขาด */
     [data-testid="stNumberInputStepUp"], [data-testid="stNumberInputStepDown"] {{
         display: none !important;
     }}
     
+    /* ซ่อนลูกศรใน input สำหรับเบราว์เซอร์ปกติ */
     input[type=number]::-webkit-inner-spin-button, 
     input[type=number]::-webkit-outer-spin-button {{ 
         -webkit-appearance: none; 
@@ -106,6 +107,7 @@ st.markdown(f"""
         -moz-appearance: textfield;
     }}
 
+    /* สไตล์ปุ่มลบรายการ (แดง) */
     div:has(span#red-btn) + div button {{
         background-color: #FF4B4B !important;
         color: white !important;
@@ -116,6 +118,7 @@ st.markdown(f"""
         color: #FF4B4B !important;
     }}
 
+    /* สไตล์ปุ่มเพิ่มรายการ (เขียว) */
     div:has(span#green-btn) + div button {{
         background-color: #28A745 !important;
         color: white !important;
@@ -126,6 +129,7 @@ st.markdown(f"""
         color: #28A745 !important;
     }}
 
+    /* แถบหัวข้อรายการ สีน้ำเงินเต็มช่อง */
     .item-label {{
         background-color: #1E3A8A;
         color: white;
@@ -138,24 +142,6 @@ st.markdown(f"""
         margin-top: 10px;
         box-shadow: 0px 2px 4px rgba(0,0,0,0.1);
     }}
-
-    /* สไตล์สำหรับส่วนหัวใหม่ */
-    .header-container {{
-        display: flex;
-        align-items: center;
-        margin-bottom: 10px;
-        gap: 10px;
-    }}
-    .header-logo {{
-        width: 30px;
-        height: 30px;
-    }}
-    .header-text {{
-        font-size: 24px; /* ขนาดเท่ากับ st.subheader */
-        font-weight: bold;
-        color: white;
-        margin: 0;
-    }}
 </style>
 <link rel="manifest" href="data:application/json;base64,{manifest_b64}">
 """, unsafe_allow_html=True)
@@ -163,16 +149,8 @@ st.markdown(f"""
 # ==========================================
 # UI MAIN
 # ==========================================
-# ส่วนหัวใหม่พร้อมโลโก้
-col_logo, col_text = st.columns([0.1, 0.9])
-with col_logo:
-    if os.path.exists("logo.png"):
-        logo_img = Image.open("logo.png")
-        st.image(logo_img, width=40)
-with col_text:
-    st.markdown(f'<p style="font-size: 24px; font-weight: bold; color: white; margin-top: 10px;">ใบเสนอราคาโรงกลึงช่างมนูญบ่อทอง</p>', unsafe_allow_html=True)
-
-st.write("") # เว้นบรรทัด
+# 1. แก้ไขขนาดหัวข้อให้เท่ากับส่วนรายละเอียด
+st.markdown("### ระบบออกใบเสนอราคา")
 
 with st.container(border=True):
     customer_select = st.selectbox("ชื่อลูกค้า", [
@@ -206,7 +184,7 @@ def remove_row(row_id):
     st.session_state.rows.remove(row_id)
 
 st.write("---")
-st.subheader("รายละเอียดใบเสนอราคา") # ขนาดตัวอักษร 24px
+st.markdown("### รายละเอียดใบเสนอราคา")
 total_all = 0
 data_rows = []
 
@@ -227,6 +205,7 @@ for i, row_id in enumerate(st.session_state.rows):
         if total_row > 0:
             st.info(f"ยอดรวมรายการนี้: **{format_number(total_row)}** บาท")
             total_all += total_row
+            
             data_rows.append({"item": item_name, "qty": qty, "unit": unit, "price": price, "total": total_row})
 
         st.markdown('<span id="red-btn"></span>', unsafe_allow_html=True)
@@ -285,6 +264,7 @@ def create_pdf():
     buf.seek(0)
     return buf
 
+# 2. แก้ไขให้กดสร้าง PDF แล้วเปิดให้ดูได้เลย
 st.write("")
 if st.button("สร้าง PDF", type="primary"):
     if not customer:
@@ -292,11 +272,23 @@ if st.button("สร้าง PDF", type="primary"):
     elif total_all == 0:
         st.error("กรุณากรอกข้อมูลรายการและราคาให้ครบถ้วนครับ")
     else:
+        # เจน PDF ออกมาเป็น Bytes
         final_pdf = create_pdf()
-        st.success("สร้างไฟล์สำเร็จ!")
+        pdf_bytes = final_pdf.getvalue()
+        
+        # แปลงเป็น Base64 เพื่อยัดใส่ Iframe
+        base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
+        
+        st.success("สร้างใบเสนอราคาสำเร็จ! คุณสามารถดูและสั่งพิมพ์/บันทึกจากหน้าต่างด้านล่างได้เลยครับ")
+        
+        # แสดงผล PDF ในหน้าเว็บทันที
+        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600px" style="border: none; border-radius: 8px;"></iframe>'
+        st.markdown(pdf_display, unsafe_allow_html=True)
+        
+        # ใส่ปุ่มดาวน์โหลดเผื่อไว้ด้านล่าง (สำหรับคนใช้บนมือถือที่ Iframe อาจจะไม่แสดงผล)
         st.download_button(
-            label="ดาวน์โหลดไฟล์ PDF",
-            data=final_pdf,
+            label="ดาวน์โหลดไฟล์ PDF เก็บไว้",
+            data=pdf_bytes,
             file_name=f"ใบเสนอราคา_{customer}.pdf",
             mime="application/pdf"
         )
