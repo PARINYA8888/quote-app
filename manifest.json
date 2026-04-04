@@ -1,6 +1,6 @@
 {
   "name": "ระบบใบเสนอราคา",
-  "short_name": "Quote",
+  "short_name": "QuoteApp",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
