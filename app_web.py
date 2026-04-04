@@ -14,8 +14,7 @@ import base64
 # CONFIGURATION & THEME
 # ==========================================
 st.set_page_config(
-    page_title="โรงกลึง MN",
-    page_icon="icon-512x512.png",
+    page_title="ระบบออกใบเสนอราคา",
     layout="centered",
     initial_sidebar_state="collapsed",
 )
@@ -58,8 +57,7 @@ def thai_baht(num):
         units = ["", "หนึ่ง", "สอง", "สาม", "สี่", "ห้า", "หก", "เจ็ด", "แปด", "เก้า"]
         pos = ["", "สิบ", "ร้อย", "พัน", "หมื่น", "แสน", "ล้าน"]
         def read(n):
-            s, n_str = str(n)[::-1]
-            s = ""
+            s, n_str = "", str(n)[::-1]
             for i, d in enumerate(n_str):
                 d = int(d)
                 if d != 0:
@@ -78,8 +76,8 @@ def thai_baht(num):
 # ==========================================
 manifest_json = """
 {
-  "name": "โรงกลึง MN",
-  "short_name": "MN Quote",
+  "name": "ระบบออกใบเสนอราคา",
+  "short_name": "QuoteApp",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#ffffff",
