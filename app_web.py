@@ -72,7 +72,7 @@ def thai_baht(num):
     except: return ""
 
 # ==========================================
-# PWA & CSS CUSTOM (รักษาความกระชับ)
+# PWA & CSS CUSTOM (รวมจุดแก้ไขเรื่องกระชับแถวและหัวข้อ)
 # ==========================================
 manifest_json = """
 {
@@ -138,16 +138,18 @@ st.markdown(f"""
         box-shadow: 0px 2px 4px rgba(0,0,0,0.1);
     }}
 
+    /* ปรับขนาดหัวข้อให้เท่ากัน 20px และดันระยะลงมาไม่ให้หลุดขอบบน */
     .custom-header {{
         font-size: 20px !important;
         font-weight: bold !important;
-        margin-top: 10px !important;
-        margin-bottom: 5px !important;
+        margin-top: 20px !important;
+        margin-bottom: 10px !important;
         color: #FFFFFF;
     }}
 
+    /* ปรับ Padding ด้านบนของแอปให้กว้างขึ้น เพื่อป้องกันการโดนตัดบนมือถือ */
     .block-container {{
-        padding-top: 1.5rem !important;
+        padding-top: 3.5rem !important;
         padding-bottom: 1rem !important;
     }}
 
@@ -164,6 +166,24 @@ st.markdown(f"""
         margin-top: 10px !important;
         margin-bottom: 10px !important;
     }}
+
+    /* -------------------------------------- */
+    /* CSS สั่งบังคับให้ช่องต่างๆ ในบรรทัดเดียวกัน เกาะกลุ่มกันในมือถือ */
+    /* -------------------------------------- */
+    @media (max-width: 768px) {
+        div[data-testid="stHorizontalBlock"] {
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            gap: 8px !important;
+        }
+        div[data-testid="stHorizontalBlock"] > div {
+            min-width: 0 !important; /* ป้องกันกล่องเบียดกันจนล้น */
+        }
+        /* ย่อฟอนต์ของ Label ในกล่องกรอกของช่องแถม เพื่อไม่ให้ตกบรรทัด */
+        div[data-testid="stHorizontalBlock"] label p {
+            font-size: 12px !important;
+        }
+    }
 </style>
 <link rel="manifest" href="data:application/json;base64,{manifest_b64}">
 """, unsafe_allow_html=True)
@@ -171,15 +191,12 @@ st.markdown(f"""
 # ==========================================
 # UI MAIN & DEFENSIVE STATE LOGIC
 # ==========================================
-
-# ตรวจสอบและบังคับสร้าง Session State อย่างปลอดภัย (กันหลุด)
 if "rows" not in st.session_state:
     st.session_state["rows"] = [0]
 if "row_counter" not in st.session_state:
     st.session_state["row_counter"] = 1
 
 def add_row():
-    # ดึงข้อมูลออกแบบปลอดภัย
     curr_rows = st.session_state.get("rows", [0])
     curr_counter = st.session_state.get("row_counter", 1)
     
@@ -193,6 +210,7 @@ def remove_row(row_id):
         curr_rows.remove(row_id)
     st.session_state["rows"] = curr_rows
 
+# ใช้ CSS คุมการแสดงผลของหัวข้อใหญ่
 st.markdown('<p class="custom-header">ระบบออกใบเสนอราคา</p>', unsafe_allow_html=True)
 
 with st.container(border=True):
@@ -218,7 +236,6 @@ st.markdown('<p class="custom-header">รายละเอียดใบเส
 total_all = 0
 data_rows = []
 
-# ดึงค่าลูปแบบดักจับความปลอดภัยสูง (นี่คือจุดที่เคยเอ๋อในภาพของคุณ Mu)
 active_rows = st.session_state.get("rows", [0])
 
 for i, row_id in enumerate(active_rows):
@@ -226,7 +243,8 @@ for i, row_id in enumerate(active_rows):
         st.markdown(f'<div class="item-label">รายการที่ {i+1}</div>', unsafe_allow_html=True)
         item_name = st.text_input("ชื่อรายการ", key=f"name_{row_id}", placeholder="ระบุรายละเอียดงานหรือสินค้า...")
         
-        c1, c2, c3 = st.columns([1, 1, 1.2])
+        # ปรับสัดส่วนคอลัมน์เล็กน้อย เพื่อให้ช่องกรอกดูสมดุลกัน
+        c1, c2, c3 = st.columns([1, 1.2, 1.5])
         qty = c1.number_input("จำนวน", min_value=1, value=None, step=1, format="%d", key=f"qty_{row_id}")
         unit = c2.selectbox("หน่วย", ["", "ชุด", "ตัว", "ชิ้น", "อัน"], key=f"unit_{row_id}")
         price = c3.number_input("ราคาต่อหน่วย", min_value=0.0, value=None, format="%g", key=f"price_{row_id}")
