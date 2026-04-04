@@ -1,0 +1,15 @@
+{
+  "name": "ระบบใบเสนอราคา",
+  "short_name": "Quote",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3380FF",
+  "icons": [
+    {
+      "src": "icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
