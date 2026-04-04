@@ -72,7 +72,7 @@ def thai_baht(num):
     except: return ""
 
 # ==========================================
-# PWA & CSS CUSTOM
+# PWA & CSS CUSTOM (อัปเกรดดีไซน์ระดับโปร)
 # ==========================================
 manifest_json = """
 {
@@ -90,37 +90,50 @@ manifest_b64 = base64.b64encode(manifest_json.encode()).decode()
 st.markdown(f"""
 <style>
     [data-testid="stSidebar"] {{display: none;}}
-    .stButton>button {{width: 100%; border-radius: 8px; font-weight: bold;}}
+    .stButton>button {{width: 100%; border-radius: 8px; font-weight: bold; transition: 0.3s;}}
     
-    /* บังคับปุ่มลบให้เป็นสีแดง */
+    /* 1. ซ่อนลูกศรขึ้นลงในช่องกรอกตัวเลข (ทำให้ดูคลีนขึ้น) */
+    input[type=number]::-webkit-inner-spin-button, 
+    input[type=number]::-webkit-outer-spin-button {{ 
+        -webkit-appearance: none; 
+        margin: 0; 
+    }}
+    input[type=number] {{
+        -moz-appearance: textfield;
+    }}
+
+    /* 2. สไตล์ปุ่มลบรายการ (แดง) มีลูกเล่นตอนชี้เมาส์ */
     div:has(span#red-btn) + div button {{
         background-color: #FF4B4B !important;
         color: white !important;
-        border: none !important;
+        border: 1px solid #FF4B4B !important;
     }}
     div:has(span#red-btn) + div button:hover {{
-        background-color: #D32F2F !important;
+        background-color: white !important;
+        color: #FF4B4B !important;
     }}
 
-    /* บังคับปุ่มเพิ่มรายการให้เป็นสีเขียว */
+    /* 3. สไตล์ปุ่มเพิ่มรายการ (เขียว) */
     div:has(span#green-btn) + div button {{
         background-color: #28A745 !important;
         color: white !important;
-        border: none !important;
+        border: 1px solid #28A745 !important;
     }}
     div:has(span#green-btn) + div button:hover {{
-        background-color: #218838 !important;
+        background-color: white !important;
+        color: #28A745 !important;
     }}
 
-    /* แถบรายการที่ 1 ชัดเจน */
+    /* 4. กล่องหัวข้อรายการแบบมินิมอล (ดูมีมาตรฐาน) */
     .item-label {{
-        background-color: #1E3A8A;
-        color: white;
-        padding: 10px;
-        border-radius: 8px 8px 0px 0px;
+        background-color: rgba(51, 128, 255, 0.1);
+        color: #1E3A8A;
+        padding: 8px 12px;
+        border-radius: 4px;
         font-weight: bold;
-        text-align: center;
-        font-size: 18px;
+        font-size: 16px;
+        margin-bottom: 10px;
+        border-left: 4px solid #3380FF;
     }}
 </style>
 <link rel="manifest" href="data:application/json;base64,{manifest_b64}">
@@ -163,30 +176,36 @@ def remove_row(row_id):
     st.session_state.rows.remove(row_id)
 
 st.write("---")
-st.markdown("### รายการสินค้า/งาน")
+st.markdown("### รายละเอียดใบเสนอราคา")
 total_all = 0
 data_rows = []
 
 for i, row_id in enumerate(st.session_state.rows):
     st.markdown(f'<div class="item-label">รายการที่ {i+1}</div>', unsafe_allow_html=True)
     with st.container(border=True):
-        item_name = st.text_input("ชื่อรายการ", key=f"name_{row_id}", placeholder="ระบุรายละเอียด...")
+        item_name = st.text_input("ชื่อรายการ", key=f"name_{row_id}", placeholder="ระบุรายละเอียดงานหรือสินค้า...")
         
-        c1, c2, c3 = st.columns([1, 1, 1.2])
-        qty = c1.text_input("จำนวน", key=f"qty_{row_id}")
-        unit = c2.selectbox("หน่วย", ["", "ชุด", "ชิ้น", "ตัว", "อัน"], key=f"unit_{row_id}")
-        price = c3.text_input("ราคาต่อหน่วย", key=f"price_{row_id}")
+        c1, c2, c3 = st.columns([1, 1.2, 1])
+        
+        # อัปเกรดเป็น number_input บังคับตัวเลข + เด้งคีย์บอร์ดมือถือ
+        qty = c1.number_input("จำนวน", min_value=0.0, value=None, placeholder="0", key=f"qty_{row_id}")
+        unit = c2.selectbox("หน่วย", ["", "ชุด", "ชิ้น", "ตัว", "อัน", "kg", "เมตร", "งาน"], key=f"unit_{row_id}")
+        price = c3.number_input("ราคาต่อหน่วย", min_value=0.0, value=None, placeholder="0.00", key=f"price_{row_id}")
 
-        try:
-            total_row = float(qty) * float(price) if qty and price else 0
-        except:
-            total_row = 0
+        total_row = 0
+        if qty is not None and price is not None:
+            total_row = qty * price
             
         if total_row > 0:
-            st.write(f"**รวมเงินรายการนี้: {format_number(total_row)} บาท**")
+            # ใช้ st.success หรือ st.info ทำไฮไลท์ยอดรวมให้ดูสวยขึ้น
+            st.info(f"ยอดรวมรายการนี้: **{format_number(total_row)}** บาท")
             total_all += total_row
-            data_rows.append({"item": item_name, "qty": qty, "unit": unit, "price": price, "total": total_row})
+            
+            # จัดการตัวเลขจำนวนให้แสดงสวยๆ (ถ้าเป็นจำนวนเต็ม ไม่ต้องแสดง .0)
+            qty_display = f"{int(qty)}" if qty.is_integer() else f"{qty}"
+            data_rows.append({"item": item_name, "qty": qty_display, "unit": unit, "price": price, "total": total_row})
 
+        st.write("") # เว้นบรรทัดนิดนึง
         st.markdown('<span id="red-btn"></span>', unsafe_allow_html=True)
         st.button("ลบรายการนี้", key=f"del_{row_id}", on_click=remove_row, args=(row_id,))
     st.write("")
@@ -195,10 +214,13 @@ st.markdown('<span id="green-btn"></span>', unsafe_allow_html=True)
 st.button("เพิ่มรายการใหม่", on_click=add_row)
 
 st.write("---")
-note = st.text_area("หมายเหตุ")
+note = st.text_area("หมายเหตุ", placeholder="เงื่อนไขการชำระเงิน, ระยะเวลาส่งมอบ ฯลฯ")
 
-st.markdown(f"<h2 style='text-align: center; color: #3380FF;'>ยอดรวมทั้งสิ้น: {format_number(total_all)} บาท</h2>", unsafe_allow_html=True)
-st.markdown(f"<p style='text-align: center;'>({thai_baht(total_all)})</p>", unsafe_allow_html=True)
+# ดีไซน์ยอดรวมใหม่ ดูเป็นทางการขึ้น
+with st.container(border=True):
+    st.markdown(f"<h3 style='text-align: center; color: #1E3A8A; margin-bottom: 0px;'>ยอดรวมทั้งสิ้น</h3>", unsafe_allow_html=True)
+    st.markdown(f"<h1 style='text-align: center; color: #3380FF; margin-top: 0px;'>{format_number(total_all)} บาท</h1>", unsafe_allow_html=True)
+    st.markdown(f"<p style='text-align: center; color: #666; font-size: 18px;'>({thai_baht(total_all)})</p>", unsafe_allow_html=True)
 
 # ==========================================
 # PDF GENERATION
@@ -242,15 +264,17 @@ def create_pdf():
     buf.seek(0)
     return buf
 
+st.write("")
 if st.button("สร้างและแชร์ PDF", type="primary"):
     if not customer:
-        st.error("กรุณาระบุชื่อลูกค้า")
+        st.error("กรุณาระบุชื่อลูกค้าก่อนสร้าง PDF ครับ")
     elif total_all == 0:
-        st.error("กรุณากรอกข้อมูลรายการ")
+        st.error("กรุณากรอกข้อมูลรายการและราคาให้ครบถ้วนครับ")
     else:
         final_pdf = create_pdf()
+        st.success("สร้างไฟล์สำเร็จ! กดปุ่มด้านล่างเพื่อดาวน์โหลดได้เลยครับ")
         st.download_button(
-            label="กดที่นี่เพื่อโหลด/ส่งไฟล์ PDF",
+            label="⬇️ โหลดไฟล์ PDF",
             data=final_pdf,
             file_name=f"ใบเสนอราคา_{customer}.pdf",
             mime="application/pdf"
