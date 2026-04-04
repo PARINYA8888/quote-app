@@ -138,9 +138,45 @@ st.markdown(f"""
         font-weight: bold;
         text-align: center;
         font-size: 16px;
-        margin-bottom: 15px;
-        margin-top: 10px;
+        margin-bottom: 10px;
+        margin-top: 5px;
         box-shadow: 0px 2px 4px rgba(0,0,0,0.1);
+    }}
+
+    /* -------------------------------------- */
+    /* CSS เพิ่มเติมสำหรับการบีบพื้นที่ (ชิดขึ้น) และขนาดหัวข้อ */
+    /* -------------------------------------- */
+    
+    /* ปรับขนาดตัวอักษรหัวข้อให้เท่ากัน 20px */
+    .custom-header {{
+        font-size: 20px !important;
+        font-weight: bold !important;
+        margin-top: 10px !important;
+        margin-bottom: 5px !important;
+        color: #FFFFFF;
+    }}
+
+    /* ลด Padding ของคอนเทนเนอร์หลักของหน้า */
+    .block-container {{
+        padding-top: 1.5rem !important;
+        padding-bottom: 1rem !important;
+    }}
+
+    /* ลด Gap ระยะห่างระหว่างกล่องต่างๆ ของ Streamlit */
+    div[data-testid="stVerticalBlock"] {{
+        gap: 0.5rem !important;
+    }}
+
+    /* ลด Padding ด้านในของกรอบสี่เหลี่ยม */
+    div[data-testid="stBorderedContainer"] {{
+        padding: 12px !important;
+        margin-bottom: 0px !important;
+    }}
+
+    /* ลดระยะเว้นบรรทัดสำหรับเส้นคั่น HR */
+    hr {{
+        margin-top: 10px !important;
+        margin-bottom: 10px !important;
     }}
 </style>
 <link rel="manifest" href="data:application/json;base64,{manifest_b64}">
@@ -149,8 +185,8 @@ st.markdown(f"""
 # ==========================================
 # UI MAIN
 # ==========================================
-# 1. แก้ไขขนาดหัวข้อให้เท่ากับส่วนรายละเอียด
-st.markdown("### ระบบออกใบเสนอราคา")
+# ใช้ CSS ครอบเพื่อให้ขนาดตัวอักษรเท่ากันเป๊ะๆ ตามต้องการ
+st.markdown('<p class="custom-header">ระบบออกใบเสนอราคา</p>', unsafe_allow_html=True)
 
 with st.container(border=True):
     customer_select = st.selectbox("ชื่อลูกค้า", [
@@ -170,21 +206,9 @@ with st.container(border=True):
     date_val = st.date_input("วันที่", value=datetime.now(), format="DD/MM/YYYY")
     date_str = date_val.strftime("%d/%m/%Y")
 
-if "rows" not in st.session_state:
-    st.session_state.rows = [0]
-
-if "row_counter" not in st.session_state:
-    st.session_state.row_counter = 1
-
-def add_row():
-    st.session_state.rows.append(st.session_state.row_counter)
-    st.session_state.row_counter += 1
-
-def remove_row(row_id):
-    st.session_state.rows.remove(row_id)
-
 st.write("---")
-st.markdown("### รายละเอียดใบเสนอราคา")
+# ใช้ CSS ตัวเดียวกัน ขนาดฟอนต์จะเท่ากับด้านบนเลยครับ
+st.markdown('<p class="custom-header">รายละเอียดใบเสนอราคา</p>', unsafe_allow_html=True)
 total_all = 0
 data_rows = []
 
@@ -210,7 +234,6 @@ for i, row_id in enumerate(st.session_state.rows):
 
         st.markdown('<span id="red-btn"></span>', unsafe_allow_html=True)
         st.button("ลบรายการนี้", key=f"del_{row_id}", on_click=remove_row, args=(row_id,))
-    st.write("")
 
 st.markdown('<span id="green-btn"></span>', unsafe_allow_html=True)
 st.button("เพิ่มรายการใหม่", on_click=add_row)
@@ -264,7 +287,6 @@ def create_pdf():
     buf.seek(0)
     return buf
 
-# 2. แก้ไขให้กดสร้าง PDF แล้วเปิดให้ดูได้เลย
 st.write("")
 if st.button("สร้าง PDF", type="primary"):
     if not customer:
