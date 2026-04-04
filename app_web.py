@@ -72,7 +72,7 @@ def thai_baht(num):
     except: return ""
 
 # ==========================================
-# PWA & CSS CUSTOM (แก้ไขจุดที่เกิด SyntaxError แล้วครับ)
+# PWA & CSS CUSTOM
 # ==========================================
 manifest_json = """
 {
@@ -165,7 +165,6 @@ st.markdown(f"""
         margin-bottom: 10px !important;
     }}
 
-    /* สั่งบังคับให้ช่องต่างๆ เกาะกลุ่มเป็นแนวนอนในมือถือ (แก้ปีกกาคู่ที่ทำให้พังเรียบร้อยครับ) */
     @media (max-width: 768px) {{
         div[data-testid="stHorizontalBlock"] {{
             flex-direction: row !important;
@@ -237,7 +236,6 @@ for i, row_id in enumerate(active_rows):
         st.markdown(f'<div class="item-label">รายการที่ {i+1}</div>', unsafe_allow_html=True)
         item_name = st.text_input("ชื่อรายการ", key=f"name_{row_id}", placeholder="ระบุรายละเอียดงานหรือสินค้า...")
         
-        # ปรับสัดส่วนคอลัมน์เล็กน้อย เพื่อให้ช่องกรอกดูสมดุลกันในแนวราบ
         c1, c2, c3 = st.columns([1, 1.2, 1.5])
         qty = c1.number_input("จำนวน", min_value=1, value=None, step=1, format="%d", key=f"qty_{row_id}")
         unit = c2.selectbox("หน่วย", ["", "ชุด", "ตัว", "ชิ้น", "อัน"], key=f"unit_{row_id}")
@@ -260,11 +258,17 @@ st.markdown('<span id="green-btn"></span>', unsafe_allow_html=True)
 st.button("เพิ่มรายการใหม่", on_click=add_row)
 
 st.write("---")
-note = st.text_area("หมายเหตุ", placeholder="ระบุเงื่อนไขเพิ่มเติม (ถ้ามี)")
 
-with st.container(border=True):
-    st.markdown(f"<h4 style='text-align: center; color: #1E3A8A; margin-bottom: 5px; margin-top: 10px;'>ยอดรวมทั้งสิ้น: <span style='color: #3380FF;'>{format_number(total_all)} บาท</span></h4>", unsafe_allow_html=True)
-    st.markdown(f"<p style='text-align: center; color: #666; font-size: 14px; margin-top: 0px;'>({thai_baht(total_all)})</p>", unsafe_allow_html=True)
+# ปรับจุดที่ 1: เปลี่ยนจาก text_area เป็น text_input เพื่อให้ช่องเล็กลงเหมือนชื่อรายการ
+note = st.text_input("หมายเหตุ", placeholder="ระบุเงื่อนไขเพิ่มเติม (ถ้ามี)")
+
+# ปรับจุดที่ 2: ใช้ HTML ตีกรอบแบบประหยัดพื้นที่ เพื่อให้ช่องยอดรวมขอบเล็กลง
+st.markdown(f"""
+<div style='border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; padding: 8px; margin-top: 10px; margin-bottom: 10px; text-align: center;'>
+    <h4 style='color: #1E3A8A; margin: 0; display: inline-block;'>ยอดรวมทั้งสิ้น: <span style='color: #3380FF;'>{format_number(total_all)} บาท</span></h4>
+    <div style='color: #aaa; font-size: 14px; margin-top: 2px;'>({thai_baht(total_all)})</div>
+</div>
+""", unsafe_allow_html=True)
 
 # ==========================================
 # PDF GENERATION
