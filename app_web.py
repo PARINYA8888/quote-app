@@ -5,10 +5,14 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.colors import HexColor
 from datetime import datetime
 import os
 import io
 import base64
+import random
+import string
+import re
 
 # ==========================================
 # CONFIGURATION & THEME
@@ -26,7 +30,8 @@ if os.path.exists("Sarabun-Regular.ttf"):
 else:
     FONT_MAIN = 'Helvetica'
 
-BLUE_THEME = (0.2, 0.5, 1)
+# ข้อ 1: เปลี่ยนสีอักษรเป็น Hex #1D74E4
+BLUE_THEME_HEX = '#1D74E4'
 
 # ==========================================
 # PDF POSITIONS
@@ -71,22 +76,33 @@ def thai_baht(num):
         return result
     except: return ""
 
-# ==========================================
-# PWA & CSS CUSTOM
-# ==========================================
-manifest_json = """
-{
-  "name": "ระบบออกใบเสนอราคา",
-  "short_name": "QuoteApp",
-  "start_url": ".",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#3380FF",
-  "icons": [{"src": "icon-512x512.png", "sizes": "512x512", "type": "image/png"}]
-}
-"""
-manifest_b64 = base64.b64encode(manifest_json.encode()).decode()
+# ฟังก์ชันสำหรับแก้สระลอยและเพิ่มความหนา (ข้อ 2 & ข้อ 8)
+def draw_thai_text(c, text, x, y, width=200, align='left', bold=False):
+    style_thai = getSampleStyleSheet()["Normal"]
+    style_thai.fontName = FONT_MAIN
+    style_thai.fontSize = 10
+    style_thai.textColor = HexColor(BLUE_THEME_HEX)
+    
+    if align == 'center':
+        style_thai.alignment = 1
+    elif align == 'right':
+        style_thai.alignment = 2
+        
+    p_text = f"<b>{text}</b>" if bold else text
+    p = Paragraph(p_text, style_thai)
+    w, h = p.wrap(width, 100)
+    
+    # คำนวณจุดตัดบรรทัดให้พอดี
+    if align == 'right':
+        p.drawOn(c, x - w, y - h + 10)
+    elif align == 'center':
+        p.drawOn(c, x - (w / 2), y - h + 10)
+    else:
+        p.drawOn(c, x, y - h + 10)
 
+# ==========================================
+# CSS CUSTOM (ข้อ 5: ปรับขนาดอักษร รายการที่ 1)
+# ==========================================
 st.markdown(f"""
 <style>
     [data-testid="stSidebar"] {{display: none;}}
@@ -132,7 +148,7 @@ st.markdown(f"""
         border-radius: 6px;
         font-weight: bold;
         text-align: center;
-        font-size: 16px;
+        font-size: 20px !important; /* ข้อ 5: ขยายขนาดอักษร */
         margin-bottom: 10px;
         margin-top: 5px;
         box-shadow: 0px 2px 4px rgba(0,0,0,0.1);
@@ -164,26 +180,11 @@ st.markdown(f"""
         margin-top: 10px !important;
         margin-bottom: 10px !important;
     }}
-
-    @media (max-width: 768px) {{
-        div[data-testid="stHorizontalBlock"] {{
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
-            gap: 8px !important;
-        }}
-        div[data-testid="stHorizontalBlock"] > div {{
-            min-width: 0 !important;
-        }}
-        div[data-testid="stHorizontalBlock"] label p {{
-            font-size: 12px !important;
-        }}
-    }}
 </style>
-<link rel="manifest" href="data:application/json;base64,{manifest_b64}">
 """, unsafe_allow_html=True)
 
 # ==========================================
-# UI MAIN & DEFENSIVE STATE LOGIC
+# UI MAIN & STATE LOGIC
 # ==========================================
 if "rows" not in st.session_state:
     st.session_state["rows"] = [0]
@@ -193,7 +194,6 @@ if "row_counter" not in st.session_state:
 def add_row():
     curr_rows = st.session_state.get("rows", [0])
     curr_counter = st.session_state.get("row_counter", 1)
-    
     curr_rows.append(curr_counter)
     st.session_state["rows"] = curr_rows
     st.session_state["row_counter"] = curr_counter + 1
@@ -207,19 +207,24 @@ def remove_row(row_id):
 st.markdown('<p class="custom-header">ระบบออกใบเสนอราคา</p>', unsafe_allow_html=True)
 
 with st.container(border=True):
-    customer_select = st.selectbox("ชื่อลูกค้า", [
-        "",
-        "บริษัท รีไซเคิล เอ็นจิเนียริ่ง จำกัด",
-        "บริษัท ซันเจียง เคมิคอล ไฟเบอร์ (ประเทศไทย) จำกัด",
-        "UFM(THAILAND) CO.,LTD.",
-        "สหกรณ์กองทุนสวนยางอำเภอบ่อทอง จำกัด",
-        "ตัวเลือกอื่นๆ"
-    ])
+    # ข้อ 4: ใช้ index=None และ placeholder แทนการใส่ค่าว่างบรรทัดแรก เพื่อลบช่องว่าง
+    customer_select = st.selectbox(
+        "ชื่อลูกค้า", 
+        [
+            "บริษัท รีไซเคิล เอ็นจิเนียริ่ง จำกัด",
+            "บริษัท ซันเจียง เคมิคอล ไฟเบอร์ (ประเทศไทย) จำกัด",
+            "UFM(THAILAND) CO.,LTD.",
+            "สหกรณ์กองทุนสวนยางอำเภอบ่อทอง จำกัด",
+            "ตัวเลือกอื่นๆ"
+        ],
+        index=None,
+        placeholder="เลือกชื่อลูกค้าหรือพิมพ์ใหม่..."
+    )
     
     if customer_select == "ตัวเลือกอื่นๆ":
         customer = st.text_input("ระบุชื่อลูกค้า", placeholder="พิมพ์ชื่อบริษัท/ชื่อลูกค้าที่นี่...")
     else:
-        customer = customer_select
+        customer = customer_select if customer_select else ""
 
     date_val = st.date_input("วันที่", value=datetime.now(), format="DD/MM/YYYY")
     date_str = date_val.strftime("%d/%m/%Y")
@@ -238,7 +243,10 @@ for i, row_id in enumerate(active_rows):
         
         c1, c2, c3 = st.columns([1, 1.2, 1.5])
         qty = c1.number_input("จำนวน", min_value=1, value=None, step=1, format="%d", key=f"qty_{row_id}")
-        unit = c2.selectbox("หน่วย", ["", "ชุด", "ตัว", "ชิ้น", "อัน"], key=f"unit_{row_id}")
+        
+        # ข้อ 4: ปรับ dropdown หน่วยไม่ให้มีช่องว่างลอยด้านบน
+        unit = c2.selectbox("หน่วย", ["ชุด", "ตัว", "ชิ้น", "อัน"], index=None, placeholder="เลือกหน่วย", key=f"unit_{row_id}")
+        
         price = c3.number_input("ราคาต่อหน่วย", min_value=0.0, value=None, format="%g", key=f"price_{row_id}")
 
         total_row = 0
@@ -248,8 +256,7 @@ for i, row_id in enumerate(active_rows):
         if total_row > 0:
             st.info(f"ยอดรวมรายการนี้: **{format_number(total_row)}** บาท")
             total_all += total_row
-            
-            data_rows.append({"item": item_name, "qty": qty, "unit": unit, "price": price, "total": total_row})
+            data_rows.append({"item": item_name, "qty": qty, "unit": unit if unit else "", "price": price, "total": total_row})
 
         st.markdown('<span id="red-btn"></span>', unsafe_allow_html=True)
         st.button("ลบรายการนี้", key=f"del_{row_id}", on_click=remove_row, args=(row_id,))
@@ -259,14 +266,12 @@ st.button("เพิ่มรายการใหม่", on_click=add_row)
 
 st.write("---")
 
-# ปรับจุดที่ 1: เปลี่ยนจาก text_area เป็น text_input เพื่อให้ช่องเล็กลงเหมือนชื่อรายการ
 note = st.text_input("หมายเหตุ", placeholder="ระบุเงื่อนไขเพิ่มเติม (ถ้ามี)")
 
-# ปรับจุดที่ 2: ใช้ HTML ตีกรอบแบบประหยัดพื้นที่ เพื่อให้ช่องยอดรวมขอบเล็กลง
+# ข้อ 3: แสดงผลเฉพาะตัวเลข ยอดรวมทั้งสิ้น ไม่แสดง (บาทถ้วน) ด้านล่าง
 st.markdown(f"""
-<div style='border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; padding: 8px; margin-top: 10px; margin-bottom: 10px; text-align: center;'>
+<div style='border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; padding: 12px; margin-top: 10px; margin-bottom: 10px; text-align: center;'>
     <h4 style='color: #1E3A8A; margin: 0; display: inline-block;'>ยอดรวมทั้งสิ้น: <span style='color: #3380FF;'>{format_number(total_all)} บาท</span></h4>
-    <div style='color: #aaa; font-size: 14px; margin-top: 2px;'>({thai_baht(total_all)})</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -279,59 +284,67 @@ def create_pdf():
     if os.path.exists("template.jpg"):
         c.drawImage("template.jpg", 0, 0, 595, 842)
     
-    c.setFont(FONT_MAIN, 10)
-    c.setFillColorRGB(*BLUE_THEME)
-    
-    c.drawString(X_NAME, Y_NAME, customer)
-    c.drawString(X_DATE, Y_DATE, date_str)
+    # ข้อ 8: แก้สระลอยและเพิ่มความหนา (Bold) โดยใช้ Paragraph Helper
+    draw_thai_text(c, customer, X_NAME, Y_NAME, width=300, bold=True)
+    draw_thai_text(c, date_str, X_DATE, Y_DATE, width=100, bold=True)
 
     style = getSampleStyleSheet()["Normal"]
-    style.fontName, style.fontSize, style.textColor, style.leading = FONT_MAIN, 10, BLUE_THEME, 14
+    style.fontName, style.fontSize, style.textColor, style.leading = FONT_MAIN, 10, HexColor(BLUE_THEME_HEX), 14
 
     y = START_Y
     for i, r in enumerate(data_rows):
-        c.drawCentredString(X_NO, y, str(i+1))
-        p = Paragraph(r["item"], style)
+        # ข้อ 2: ใส่ <b> ครอบเพื่อให้ฟอนต์ในตารางดูหนาและชัดขึ้น
+        draw_thai_text(c, str(i+1), X_NO, y, width=20, align='center', bold=True)
+        
+        p = Paragraph(f"<b>{r['item']}</b>", style)
         w, h = p.wrap(ITEM_WIDTH, 100)
         p.drawOn(c, X_ITEM, y - h + 10)
-        if r["qty"]: c.drawCentredString(X_QTY, y, str(r["qty"]))
-        if r["unit"]: c.drawCentredString(X_UNIT, y, r["unit"])
-        if r["price"]: c.drawRightString(X_PRICE, y, format_number(r["price"]))
-        if r["total"]: c.drawRightString(X_TOTAL, y, format_number(r["total"]))
+        
+        if r["qty"]: draw_thai_text(c, str(r["qty"]), X_QTY, y, width=30, align='center', bold=True)
+        if r["unit"]: draw_thai_text(c, r["unit"], X_UNIT, y, width=30, align='center', bold=True)
+        if r["price"]: draw_thai_text(c, format_number(r["price"]), X_PRICE, y, width=60, align='right', bold=True)
+        if r["total"]: draw_thai_text(c, format_number(r["total"]), X_TOTAL, y, width=60, align='right', bold=True)
+        
         y -= max(h, 20)
 
-    c.drawRightString(X_SUM, Y_SUM, format_number(total_all))
-    c.drawRightString(X_SUM_TEXT - 250, Y_SUM_TEXT, thai_baht(total_all))
+    # วาดจำนวนรวมและ (บาทถ้วน) ลงใน PDF
+    draw_thai_text(c, format_number(total_all), X_SUM, Y_SUM, width=80, align='right', bold=True)
+    draw_thai_text(c, thai_baht(total_all), X_SUM_TEXT - 250, Y_SUM_TEXT, width=250, align='right', bold=True)
     
     if note:
-        pn = Paragraph(note, style)
-        wn, hn = pn.wrap(NOTE_WIDTH, 100)
-        pn.drawOn(c, X_NOTE, Y_NOTE - hn + 10)
+        p_note = Paragraph(f"<b>{note}</b>", style)
+        wn, hn = p_note.wrap(NOTE_WIDTH, 100)
+        p_note.drawOn(c, X_NOTE, Y_NOTE - hn + 10)
         
     c.save()
     buf.seek(0)
     return buf
 
+# ==========================================
+# DOWNLOAD & TRIGGER ACTION
+# ==========================================
 st.write("")
+# ข้อ 6: ถอดเงื่อนไขการห้ามสร้างออก กรอกไม่ครบก็สามารถกดสร้าง PDF ได้เลย
 if st.button("สร้าง PDF", type="primary"):
-    if not customer:
-        st.error("กรุณาระบุชื่อลูกค้าก่อนสร้าง PDF ครับ")
-    elif total_all == 0:
-        st.error("กรุณากรอกข้อมูลรายการและราคาให้ครบถ้วนครับ")
-    else:
-        final_pdf = create_pdf()
-        pdf_bytes = final_pdf.getvalue()
-        
-        base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
-        
-        st.success("สร้างใบเสนอราคาสำเร็จ! คุณสามารถดูและสั่งพิมพ์/บันทึกจากหน้าต่างด้านล่างได้เลยครับ")
-        
-        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600px" style="border: none; border-radius: 8px;"></iframe>'
-        st.markdown(pdf_display, unsafe_allow_html=True)
-        
-        st.download_button(
-            label="ดาวน์โหลดไฟล์ PDF เก็บไว้",
-            data=pdf_bytes,
-            file_name=f"ใบเสนอราคา_{customer}.pdf",
-            mime="application/pdf"
-        )
+    final_pdf = create_pdf()
+    pdf_bytes = final_pdf.getvalue()
+    
+    base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
+    
+    # ข้อ 7: การสุ่มชื่อไฟล์ไม่ให้ซ้ำกัน (ใบเสนอราคา_ชื่อลูกค้า_วันที่_สุ่ม3หลัก.pdf)
+    safe_customer = re.sub(r'[^\w\s\u0E00-\u0E7F]', '', customer).replace(" ", "_") if customer else "ทั่วไป"
+    random_str = "".join(random.choices(string.ascii_uppercase + string.digits, k=3))
+    date_for_file = date_str.replace("/", "-")
+    file_name = f"ใบเสนอราคา_{safe_customer}_{date_for_file}_{random_str}.pdf"
+    
+    # พรีวิวหน้าต่าง PDF
+    pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600px" style="border: none; border-radius: 8px;"></iframe>'
+    st.markdown(pdf_display, unsafe_allow_html=True)
+    
+    # ข้อ 6: เอาประโยคแจ้งเตือนสำเร็จออก สามารถกดดาวน์โหลดที่ปุ่มนี้ได้เลย
+    st.download_button(
+        label="ดาวน์โหลดไฟล์ PDF",
+        data=pdf_bytes,
+        file_name=file_name,
+        mime="application/pdf"
+    )
