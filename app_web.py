@@ -30,7 +30,6 @@ if os.path.exists("Sarabun-Regular.ttf"):
 else:
     FONT_MAIN = 'Helvetica'
 
-# ข้อ 1: เปลี่ยนสีอักษรเป็น Hex #1D74E4
 BLUE_THEME_HEX = '#1D74E4'
 
 # ==========================================
@@ -76,32 +75,41 @@ def thai_baht(num):
         return result
     except: return ""
 
-# ฟังก์ชันสำหรับแก้สระลอยและเพิ่มความหนา (ข้อ 2 & ข้อ 8)
+# ข้อ 1 & 2: ฟังก์ชันแก้สระลอย และทำ Fake Bold โดยการวาดซ้ำเหลื่อมกันเล็กน้อย
 def draw_thai_text(c, text, x, y, width=200, align='left', bold=False):
     style_thai = getSampleStyleSheet()["Normal"]
     style_thai.fontName = FONT_MAIN
     style_thai.fontSize = 10
     style_thai.textColor = HexColor(BLUE_THEME_HEX)
+    style_thai.leading = 14
     
     if align == 'center':
         style_thai.alignment = 1
     elif align == 'right':
         style_thai.alignment = 2
         
-    p_text = f"<b>{text}</b>" if bold else text
-    p = Paragraph(p_text, style_thai)
+    p = Paragraph(text, style_thai)
     w, h = p.wrap(width, 100)
     
-    # คำนวณจุดตัดบรรทัดให้พอดี
     if align == 'right':
-        p.drawOn(c, x - w, y - h + 10)
+        pos_x = x - w
     elif align == 'center':
-        p.drawOn(c, x - (w / 2), y - h + 10)
+        pos_x = x - (w / 2)
     else:
-        p.drawOn(c, x, y - h + 10)
+        pos_x = x
+        
+    pos_y = y - h + 10
+    
+    # วาดครั้งที่ 1
+    p.drawOn(c, pos_x, pos_y)
+    
+    # หากต้องการตัวหนา ให้วาดทับอีกครั้งขยับไปทางขวา 0.5 pt
+    if bold:
+        p.drawOn(c, pos_x + 0.5, pos_y)
+        p.drawOn(c, pos_x, pos_y + 0.2)
 
 # ==========================================
-# CSS CUSTOM (ข้อ 5: ปรับขนาดอักษร รายการที่ 1)
+# CSS CUSTOM
 # ==========================================
 st.markdown(f"""
 <style>
@@ -141,6 +149,7 @@ st.markdown(f"""
         color: #28A745 !important;
     }}
 
+    /* ข้อ 3: ปรับขนาดกรอบ รายการที่ 1 ให้เล็กลงและอยู่ตรงกลาง */
     .item-label {{
         background-color: #1E3A8A;
         color: white;
@@ -148,9 +157,9 @@ st.markdown(f"""
         border-radius: 6px;
         font-weight: bold;
         text-align: center;
-        font-size: 20px !important; /* ข้อ 5: ขยายขนาดอักษร */
-        margin-bottom: 10px;
-        margin-top: 5px;
+        font-size: 16px !important;
+        margin: 0 auto 10px auto !important;
+        max-width: 400px;
         box-shadow: 0px 2px 4px rgba(0,0,0,0.1);
     }}
 
@@ -207,7 +216,6 @@ def remove_row(row_id):
 st.markdown('<p class="custom-header">ระบบออกใบเสนอราคา</p>', unsafe_allow_html=True)
 
 with st.container(border=True):
-    # ข้อ 4: ใช้ index=None และ placeholder แทนการใส่ค่าว่างบรรทัดแรก เพื่อลบช่องว่าง
     customer_select = st.selectbox(
         "ชื่อลูกค้า", 
         [
@@ -243,10 +251,7 @@ for i, row_id in enumerate(active_rows):
         
         c1, c2, c3 = st.columns([1, 1.2, 1.5])
         qty = c1.number_input("จำนวน", min_value=1, value=None, step=1, format="%d", key=f"qty_{row_id}")
-        
-        # ข้อ 4: ปรับ dropdown หน่วยไม่ให้มีช่องว่างลอยด้านบน
         unit = c2.selectbox("หน่วย", ["ชุด", "ตัว", "ชิ้น", "อัน"], index=None, placeholder="เลือกหน่วย", key=f"unit_{row_id}")
-        
         price = c3.number_input("ราคาต่อหน่วย", min_value=0.0, value=None, format="%g", key=f"price_{row_id}")
 
         total_row = 0
@@ -268,9 +273,9 @@ st.write("---")
 
 note = st.text_input("หมายเหตุ", placeholder="ระบุเงื่อนไขเพิ่มเติม (ถ้ามี)")
 
-# ข้อ 3: แสดงผลเฉพาะตัวเลข ยอดรวมทั้งสิ้น ไม่แสดง (บาทถ้วน) ด้านล่าง
+# ข้อ 4: ปรับขนาดกรอบ ยอดรวมทั้งสิ้น ให้เล็กลงและอยู่ตรงกลาง (ขนาด 400px)
 st.markdown(f"""
-<div style='border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; padding: 12px; margin-top: 10px; margin-bottom: 10px; text-align: center;'>
+<div style='border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; padding: 12px; margin: 10px auto; text-align: center; max-width: 400px;'>
     <h4 style='color: #1E3A8A; margin: 0; display: inline-block;'>ยอดรวมทั้งสิ้น: <span style='color: #3380FF;'>{format_number(total_all)} บาท</span></h4>
 </div>
 """, unsafe_allow_html=True)
@@ -284,37 +289,29 @@ def create_pdf():
     if os.path.exists("template.jpg"):
         c.drawImage("template.jpg", 0, 0, 595, 842)
     
-    # ข้อ 8: แก้สระลอยและเพิ่มความหนา (Bold) โดยใช้ Paragraph Helper
+    # เปิดใช้ Bold ทุกจุดเพื่อตัวอักษรที่หนาขึ้น
     draw_thai_text(c, customer, X_NAME, Y_NAME, width=300, bold=True)
     draw_thai_text(c, date_str, X_DATE, Y_DATE, width=100, bold=True)
 
-    style = getSampleStyleSheet()["Normal"]
-    style.fontName, style.fontSize, style.textColor, style.leading = FONT_MAIN, 10, HexColor(BLUE_THEME_HEX), 14
-
     y = START_Y
     for i, r in enumerate(data_rows):
-        # ข้อ 2: ใส่ <b> ครอบเพื่อให้ฟอนต์ในตารางดูหนาและชัดขึ้น
         draw_thai_text(c, str(i+1), X_NO, y, width=20, align='center', bold=True)
         
-        p = Paragraph(f"<b>{r['item']}</b>", style)
-        w, h = p.wrap(ITEM_WIDTH, 100)
-        p.drawOn(c, X_ITEM, y - h + 10)
+        # ปรับการวาดชื่อรายการให้ใช้ Paragraph แก้สระลอยและทำ Fake Bold
+        draw_thai_text(c, r['item'], X_ITEM, y, width=ITEM_WIDTH, bold=True)
         
         if r["qty"]: draw_thai_text(c, str(r["qty"]), X_QTY, y, width=30, align='center', bold=True)
         if r["unit"]: draw_thai_text(c, r["unit"], X_UNIT, y, width=30, align='center', bold=True)
         if r["price"]: draw_thai_text(c, format_number(r["price"]), X_PRICE, y, width=60, align='right', bold=True)
         if r["total"]: draw_thai_text(c, format_number(r["total"]), X_TOTAL, y, width=60, align='right', bold=True)
         
-        y -= max(h, 20)
+        y -= 20 # รักษาระยะบรรทัด
 
-    # วาดจำนวนรวมและ (บาทถ้วน) ลงใน PDF
     draw_thai_text(c, format_number(total_all), X_SUM, Y_SUM, width=80, align='right', bold=True)
     draw_thai_text(c, thai_baht(total_all), X_SUM_TEXT - 250, Y_SUM_TEXT, width=250, align='right', bold=True)
     
     if note:
-        p_note = Paragraph(f"<b>{note}</b>", style)
-        wn, hn = p_note.wrap(NOTE_WIDTH, 100)
-        p_note.drawOn(c, X_NOTE, Y_NOTE - hn + 10)
+        draw_thai_text(c, note, X_NOTE, Y_NOTE, width=NOTE_WIDTH, bold=True)
         
     c.save()
     buf.seek(0)
@@ -324,24 +321,19 @@ def create_pdf():
 # DOWNLOAD & TRIGGER ACTION
 # ==========================================
 st.write("")
-# ข้อ 6: ถอดเงื่อนไขการห้ามสร้างออก กรอกไม่ครบก็สามารถกดสร้าง PDF ได้เลย
 if st.button("สร้าง PDF", type="primary"):
     final_pdf = create_pdf()
     pdf_bytes = final_pdf.getvalue()
     
-    base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
-    
-    # ข้อ 7: การสุ่มชื่อไฟล์ไม่ให้ซ้ำกัน (ใบเสนอราคา_ชื่อลูกค้า_วันที่_สุ่ม3หลัก.pdf)
-    safe_customer = re.sub(r'[^\w\s\u0E00-\u0E7F]', '', customer).replace(" ", "_") if customer else "ทั่วไป"
+    # ข้อ 6: ปรับให้ลบเฉพาะอักขระที่ห้ามใช้ในชื่อไฟล์ของคอมพิวเตอร์ (\/*?:"<>|) แต่เก็บวงเล็บและเว้นวรรคไว้
+    clean_customer = re.sub(r'[\\/*?:"<>|]', '', customer) if customer else "ทั่วไป"
     random_str = "".join(random.choices(string.ascii_uppercase + string.digits, k=3))
-    date_for_file = date_str.replace("/", "-")
-    file_name = f"ใบเสนอราคา_{safe_customer}_{date_for_file}_{random_str}.pdf"
+    date_for_file = date_val.strftime("%d-%m-%Y")
+    file_name = f"ใบเสนอราคา_{clean_customer}_{date_for_file}_{random_str}.pdf"
     
-    # พรีวิวหน้าต่าง PDF
-    pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600px" style="border: none; border-radius: 8px;"></iframe>'
-    st.markdown(pdf_display, unsafe_allow_html=True)
+    # ข้อ 5: ถูกเอาคำสั่งพรีวิว PDF ออกไปแล้ว เพื่อไม่ให้แสดงผลบนจอหลังกดสร้าง
     
-    # ข้อ 6: เอาประโยคแจ้งเตือนสำเร็จออก สามารถกดดาวน์โหลดที่ปุ่มนี้ได้เลย
+    # แสดงปุ่มดาวน์โหลดทันที
     st.download_button(
         label="ดาวน์โหลดไฟล์ PDF",
         data=pdf_bytes,
