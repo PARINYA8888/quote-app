@@ -22,7 +22,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# ข้อ 1 & 2: ตรวจสอบและลงทะเบียนฟอนต์ตัวธรรมดา และตัวหนาของแท้
+# ลงทะเบียนฟอนต์ภาษาไทย (ต้องมีไฟล์อยู่ในโฟลเดอร์เดียวกัน)
 FONT_MAIN = 'Helvetica'
 FONT_BOLD = 'Helvetica-Bold'
 
@@ -34,7 +34,6 @@ if os.path.exists("Sarabun-Bold.ttf"):
     pdfmetrics.registerFont(TTFont('Sarabun-Bold', 'Sarabun-Bold.ttf'))
     FONT_BOLD = 'Sarabun-Bold'
 else:
-    # ถ้าหาไฟล์ตัวหนาไม่เจอ ให้ใช้ตัวธรรมดาแทนเพื่อไม่ให้สระซ้อน
     FONT_BOLD = FONT_MAIN
 
 BLUE_THEME_HEX = '#1D74E4'
@@ -84,7 +83,6 @@ def thai_baht(num):
 
 def draw_thai_text(c, text, x, y, width=200, align='left', bold=False):
     style_thai = getSampleStyleSheet()["Normal"]
-    # เปลี่ยนมาใช้ฟอนต์ตัวหนาจริงๆ แทนการวาดซ้ำเพื่อไม่ให้สระซ้อน
     style_thai.fontName = FONT_BOLD if bold else FONT_MAIN
     style_thai.fontSize = 10
     style_thai.textColor = HexColor(BLUE_THEME_HEX)
@@ -141,11 +139,11 @@ st.markdown(f"""
         border: 1px solid #28A745 !important;
     }}
 
-    /* ข้อ 3: กรอบสีน้ำเงินยาวเต็มเหมือนเดิม แต่ลด Padding เพื่อให้ความสูงเท่ากับช่องกรอก */
+    /* ข้อ 3: กรอบสีน้ำเงินยาวเต็มจอ และบีบความสูงให้เท่าช่องกรอก (ลด padding เหลือ 5px) */
     .item-label {{
         background-color: #1E3A8A;
         color: white;
-        padding: 6px 12px;
+        padding: 5px 12px !important;
         border-radius: 6px;
         font-weight: bold;
         text-align: center;
@@ -176,14 +174,13 @@ st.markdown(f"""
         margin-bottom: 0px !important;
     }}
 
-    /* ข้อ 4: กรอบยอดรวมทั้งสิ้น กว้างเท่ากับขนาดช่องกรอกรายการ (ประมาณ 400px) และอยู่ตรงกลาง */
+    /* ข้อ 4: กรอบยอดรวมยาวเต็มเหมือนเดิม บีบความสูงให้บางลง */
     .total-box-container {{
         border: 1px solid rgba(255, 255, 255, 0.2);
         border-radius: 8px;
-        padding: 12px;
-        margin: 10px auto;
+        padding: 6px 12px !important;
+        margin: 10px 0px !important;
         text-align: center;
-        max-width: 400px;
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -269,11 +266,10 @@ st.write("---")
 
 note = st.text_input("หมายเหตุ", placeholder="ระบุเงื่อนไขเพิ่มเติม (ถ้ามี)")
 
-# ข้อ 4: ใช้ div class 'total-box-container' ที่กะขนาดความกว้างไว้ 400px
+# ข้อ 3: แสดงผลแค่ตัวเลขยอดรวม ไม่แสดงตัวอักษร "หนึ่งพันบาทถ้วน" บนหน้าเว็บ
 st.markdown(f"""
 <div class="total-box-container">
     <h4 style='color: #1E3A8A; margin: 0; display: inline-block;'>ยอดรวมทั้งสิ้น: <span style='color: #3380FF;'>{format_number(total_all)} บาท</span></h4>
-    <div style='font-size: 14px; color: #888;'>({thai_baht(total_all)})</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -286,27 +282,29 @@ def create_pdf():
     if os.path.exists("template.jpg"):
         c.drawImage("template.jpg", 0, 0, 595, 842)
     
-    # วาดข้อมูลด้วยฟอนต์ปกติและฟอนต์หนาแท้ (ถ้ามี)
-    draw_thai_text(c, customer, X_NAME, Y_NAME, width=300, bold=True)
-    draw_thai_text(c, date_str, X_DATE, Y_DATE, width=100, bold=True)
+    # ข้อ 1 & 2: ยกเลิกการเป็นตัวหนา (bold=False) ทั้งหมดเพื่อไม่ให้สระซ้อน
+    draw_thai_text(c, customer, X_NAME, Y_NAME, width=300, bold=False)
+    draw_thai_text(c, date_str, X_DATE, Y_DATE, width=100, bold=False)
 
     y = START_Y
     for i, r in enumerate(data_rows):
-        draw_thai_text(c, str(i+1), X_NO, y, width=20, align='center', bold=True)
-        draw_thai_text(c, r['item'], X_ITEM, y, width=ITEM_WIDTH, bold=True)
+        draw_thai_text(c, str(i+1), X_NO, y, width=20, align='center', bold=False)
+        draw_thai_text(c, r['item'], X_ITEM, y, width=ITEM_WIDTH, bold=False)
         
-        if r["qty"]: draw_thai_text(c, str(r["qty"]), X_QTY, y, width=30, align='center', bold=True)
-        if r["unit"]: draw_thai_text(c, r["unit"], X_UNIT, y, width=30, align='center', bold=True)
-        if r["price"]: draw_thai_text(c, format_number(r["price"]), X_PRICE, y, width=60, align='right', bold=True)
-        if r["total"]: draw_thai_text(c, format_number(r["total"]), X_TOTAL, y, width=60, align='right', bold=True)
+        if r["qty"]: draw_thai_text(c, str(r["qty"]), X_QTY, y, width=30, align='center', bold=False)
+        if r["unit"]: draw_thai_text(c, r["unit"], X_UNIT, y, width=30, align='center', bold=False)
+        if r["price"]: draw_thai_text(c, format_number(r["price"]), X_PRICE, y, width=60, align='right', bold=False)
+        if r["total"]: draw_thai_text(c, format_number(r["total"]), X_TOTAL, y, width=60, align='right', bold=False)
         
         y -= 20
 
-    draw_thai_text(c, format_number(total_all), X_SUM, Y_SUM, width=80, align='right', bold=True)
-    draw_thai_text(c, thai_baht(total_all), X_SUM_TEXT - 250, Y_SUM_TEXT, width=250, align='right', bold=True)
+    draw_thai_text(c, format_number(total_all), X_SUM, Y_SUM, width=80, align='right', bold=False)
+    
+    # พล็อตตัวหนังสือภาษาไทย (เช่น หนึ่งพันบาทถ้วน) ลงใน PDF เหมือนเดิม
+    draw_thai_text(c, thai_baht(total_all), X_SUM_TEXT - 250, Y_SUM_TEXT, width=250, align='right', bold=False)
     
     if note:
-        draw_thai_text(c, note, X_NOTE, Y_NOTE, width=NOTE_WIDTH, bold=True)
+        draw_thai_text(c, note, X_NOTE, Y_NOTE, width=NOTE_WIDTH, bold=False)
         
     c.save()
     buf.seek(0)
