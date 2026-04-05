@@ -3,8 +3,6 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import Paragraph
-from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.colors import HexColor
 from datetime import datetime
 import os
@@ -15,7 +13,7 @@ import re
 
 # ==========================================
 # CONFIGURATION & THEME
-# ==========================================
+# ==========================
 st.set_page_config(
     page_title="ระบบออกใบเสนอราคา",
     layout="centered",
@@ -81,30 +79,17 @@ def thai_baht(num):
         return result
     except: return ""
 
-def draw_thai_text(c, text, x, y, width=200, align='left', bold=False):
-    style_thai = getSampleStyleSheet()["Normal"]
-    style_thai.fontName = FONT_BOLD if bold else FONT_MAIN
-    style_thai.fontSize = 10
-    style_thai.textColor = HexColor(BLUE_THEME_HEX)
-    style_thai.leading = 14
+# เปลี่ยนกลับมาใช้ drawString ปกติ เพื่อดูว่าปัญหาสระซ้อนจะดีขึ้นไหมสำหรับบางฟอนต์
+def draw_thai_text(c, text, x, y, align='left', bold=False):
+    c.setFont(FONT_BOLD if bold else FONT_MAIN, 10)
+    c.setFillColor(HexColor(BLUE_THEME_HEX))
     
     if align == 'center':
-        style_thai.alignment = 1
+        c.drawCentredString(x, y, text)
     elif align == 'right':
-        style_thai.alignment = 2
-        
-    p = Paragraph(text, style_thai)
-    w, h = p.wrap(width, 100)
-    
-    if align == 'right':
-        pos_x = x - w
-    elif align == 'center':
-        pos_x = x - (w / 2)
+        c.drawRightString(x, y, text)
     else:
-        pos_x = x
-        
-    pos_y = y - h + 10
-    p.drawOn(c, pos_x, pos_y)
+        c.drawString(x, y, text)
 
 # ==========================================
 # CSS CUSTOM
@@ -139,7 +124,7 @@ st.markdown(f"""
         border: 1px solid #28A745 !important;
     }}
 
-    /* ข้อ 3: กรอบสีน้ำเงินยาวเต็มจอ และบีบความสูงให้เท่าช่องกรอก (ลด padding เหลือ 5px) */
+    /* กรอบสีน้ำเงินยาวเต็มจอ และบีบความสูงให้เท่าช่องกรอก */
     .item-label {{
         background-color: #1E3A8A;
         color: white;
@@ -174,13 +159,15 @@ st.markdown(f"""
         margin-bottom: 0px !important;
     }}
 
-    /* ข้อ 4: กรอบยอดรวมยาวเต็มเหมือนเดิม บีบความสูงให้บางลง */
+    /* กรอบยอดรวมยาวเต็ม บังคับความสูง 42px เท่าช่องกรอก และจัดอักษรให้อยู่กึ่งกลาง */
     .total-box-container {{
         border: 1px solid rgba(255, 255, 255, 0.2);
         border-radius: 8px;
-        padding: 6px 12px !important;
+        height: 42px !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         margin: 10px 0px !important;
-        text-align: center;
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -266,10 +253,10 @@ st.write("---")
 
 note = st.text_input("หมายเหตุ", placeholder="ระบุเงื่อนไขเพิ่มเติม (ถ้ามี)")
 
-# ข้อ 3: แสดงผลแค่ตัวเลขยอดรวม ไม่แสดงตัวอักษร "หนึ่งพันบาทถ้วน" บนหน้าเว็บ
+# แสดงผลแค่ตัวเลขยอดรวม ไม่แสดงภาษาไทยบนหน้าเว็บ
 st.markdown(f"""
 <div class="total-box-container">
-    <h4 style='color: #1E3A8A; margin: 0; display: inline-block;'>ยอดรวมทั้งสิ้น: <span style='color: #3380FF;'>{format_number(total_all)} บาท</span></h4>
+    <h4 style='color: #1E3A8A; margin: 0;'>ยอดรวมทั้งสิ้น: <span style='color: #3380FF;'>{format_number(total_all)} บาท</span></h4>
 </div>
 """, unsafe_allow_html=True)
 
@@ -282,29 +269,29 @@ def create_pdf():
     if os.path.exists("template.jpg"):
         c.drawImage("template.jpg", 0, 0, 595, 842)
     
-    # ข้อ 1 & 2: ยกเลิกการเป็นตัวหนา (bold=False) ทั้งหมดเพื่อไม่ให้สระซ้อน
-    draw_thai_text(c, customer, X_NAME, Y_NAME, width=300, bold=False)
-    draw_thai_text(c, date_str, X_DATE, Y_DATE, width=100, bold=False)
+    # พล็อตตัวหนังสือแบบปกติ ไม่หนา
+    draw_thai_text(c, customer, X_NAME, Y_NAME, bold=False)
+    draw_thai_text(c, date_str, X_DATE, Y_DATE, bold=False)
 
     y = START_Y
     for i, r in enumerate(data_rows):
-        draw_thai_text(c, str(i+1), X_NO, y, width=20, align='center', bold=False)
-        draw_thai_text(c, r['item'], X_ITEM, y, width=ITEM_WIDTH, bold=False)
+        draw_thai_text(c, str(i+1), X_NO, y, align='center', bold=False)
+        draw_thai_text(c, r['item'], X_ITEM, y, bold=False)
         
-        if r["qty"]: draw_thai_text(c, str(r["qty"]), X_QTY, y, width=30, align='center', bold=False)
-        if r["unit"]: draw_thai_text(c, r["unit"], X_UNIT, y, width=30, align='center', bold=False)
-        if r["price"]: draw_thai_text(c, format_number(r["price"]), X_PRICE, y, width=60, align='right', bold=False)
-        if r["total"]: draw_thai_text(c, format_number(r["total"]), X_TOTAL, y, width=60, align='right', bold=False)
+        if r["qty"]: draw_thai_text(c, str(r["qty"]), X_QTY, y, align='center', bold=False)
+        if r["unit"]: draw_thai_text(c, r["unit"], X_UNIT, y, align='center', bold=False)
+        if r["price"]: draw_thai_text(c, format_number(r["price"]), X_PRICE, y, align='right', bold=False)
+        if r["total"]: draw_thai_text(c, format_number(r["total"]), X_TOTAL, y, align='right', bold=False)
         
         y -= 20
 
-    draw_thai_text(c, format_number(total_all), X_SUM, Y_SUM, width=80, align='right', bold=False)
+    draw_thai_text(c, format_number(total_all), X_SUM, Y_SUM, align='right', bold=False)
     
-    # พล็อตตัวหนังสือภาษาไทย (เช่น หนึ่งพันบาทถ้วน) ลงใน PDF เหมือนเดิม
-    draw_thai_text(c, thai_baht(total_all), X_SUM_TEXT - 250, Y_SUM_TEXT, width=250, align='right', bold=False)
+    # พล็อตตัวหนังสือภาษาไทยลงใน PDF เหมือนเดิม
+    draw_thai_text(c, thai_baht(total_all), X_SUM_TEXT - 250, Y_SUM_TEXT, align='right', bold=False)
     
     if note:
-        draw_thai_text(c, note, X_NOTE, Y_NOTE, width=NOTE_WIDTH, bold=False)
+        draw_thai_text(c, note, X_NOTE, Y_NOTE, bold=False)
         
     c.save()
     buf.seek(0)
