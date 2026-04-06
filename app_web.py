@@ -79,12 +79,10 @@ def thai_baht(num):
         return result
     except: return ""
 
+# ตัด setCharSpace ที่ทำให้เกิด Error ออกแล้วครับ
 def draw_thai_text(c, text, x, y, align='left', bold=False):
     c.setFont(FONT_BOLD if bold else FONT_MAIN, 10)
     c.setFillColor(HexColor(BLUE_THEME_HEX))
-    
-    # ช่วยลดสระซ้อนใน PDF
-    c.setCharSpace(0.3)
     
     if align == 'center':
         c.drawCentredString(x, y, text)
@@ -92,8 +90,6 @@ def draw_thai_text(c, text, x, y, align='left', bold=False):
         c.drawRightString(x, y, text)
     else:
         c.drawString(x, y, text)
-    
-    c.setCharSpace(0)
 
 # ==========================================
 # CSS CUSTOM
@@ -201,8 +197,8 @@ with st.container(border=True):
             "บริษัท ซันเจียง เคมิคอล ไฟเบอร์ (ประเทศไทย) จำกัด",
             "UFM(THAILAND) CO.,LTD.",
             "สหกรณ์กองทุนสวนยางอำเภอบ่อทอง จำกัด",
-            "ECHO TOOLS CORPORATION(THAILAND) CO.,LTD.",
-            "DSG Advanced Material (Thailand) Co.,Ltd.",
+            "ECHO TOOLS CORPORATION(THAILAND) CO., LTD.",
+            "DSG Advanced Material (Thailand) Co., Ltd.",
             "ตัวเลือกอื่นๆ"
         ],
         index=None,
@@ -294,7 +290,7 @@ if st.button("สร้าง PDF", type="primary"):
     clean_customer = re.sub(r'[\\/*?:"<>|]', '', customer) if customer else "ทั่วไป"
     
     st.download_button(
-        label="📥 ดาวน์โหลดไฟล์ PDF",
+        label="ดาวน์โหลดไฟล์ PDF",
         data=pdf_bytes,
         file_name=f"ใบเสนอราคา_{clean_customer}_{date_val.strftime('%d-%m-%Y')}.pdf",
         mime="application/pdf"
