@@ -168,15 +168,17 @@ st.markdown(f"""
         background-color: rgba(29, 116, 228, 0.05);
     }}
 
-    /* ล็อกให้คอลัมน์อยู่บรรทัดเดียวกันบนจอมือถือ */
+    /* ล็อกให้คอลัมน์อยู่บรรทัดเดียวกันบนจอมือถือ พร้อมสั่งให้แบ่งพื้นที่กันไม่ให้ล้นจอ */
     @media screen and (max-width: 768px) {{
         div[data-testid="stHorizontalBlock"] {{
             flex-direction: row !important;
             flex-wrap: nowrap !important;
-            gap: 0.5rem !important;
+            gap: 0.3rem !important; /* ลดช่องไฟลงนิดนึง */
         }}
         div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {{
-            min-width: 0 !important;
+            width: 100% !important; 
+            flex: 1 1 0% !important; /* บังคับให้แบ่งความกว้างกันเท่าๆ กัน */
+            min-width: 0 !important; /* ป้องกันไม่ให้กล่องขยายเกินพื้นที่ที่กำหนด */
         }}
     }}
 </style>
