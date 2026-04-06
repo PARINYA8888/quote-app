@@ -79,7 +79,6 @@ def thai_baht(num):
         return result
     except: return ""
 
-# ตัด setCharSpace ที่ทำให้เกิด Error ออกแล้วครับ
 def draw_thai_text(c, text, x, y, align='left', bold=False):
     c.setFont(FONT_BOLD if bold else FONT_MAIN, 10)
     c.setFillColor(HexColor(BLUE_THEME_HEX))
@@ -242,7 +241,6 @@ st.button("เพิ่มรายการใหม่", on_click=add_row)
 st.write("---")
 note = st.text_input("หมายเหตุ", placeholder="ระบุเงื่อนไขเพิ่มเติม (ถ้ามี)")
 
-# กรอบยอดรวม สูง 55px
 st.markdown(f"""
 <div class="total-box-container">
     <h3 style='color: #1E3A8A; margin: 0; font-size: 22px;'>ยอดรวมทั้งสิ้น: <span style='color: #3380FF;'>{format_number(total_all)} บาท</span></h3>
@@ -287,11 +285,22 @@ st.write("")
 if st.button("สร้าง PDF", type="primary"):
     final_pdf = create_pdf()
     pdf_bytes = final_pdf.getvalue()
+    
+    # ดึงชื่อลูกค้า และลบอักขระพิเศษที่ห้ามใช้ในการตั้งชื่อไฟล์
     clean_customer = re.sub(r'[\\/*?:"<>|]', '', customer) if customer else "ทั่วไป"
+    
+    # จัดฟอร์แมตวันที่เป็น DD-MM-YYYY
+    date_file = date_val.strftime("%d-%m-%Y")
+    
+    # สุ่มรหัส 3 หลัก (อักษรภาษาอังกฤษพิมพ์ใหญ่ผสมตัวเลข)
+    random_str = "".join(random.choices(string.ascii_uppercase + string.digits, k=3))
+    
+    # ประกอบชื่อไฟล์
+    file_name = f"ใบเสนอราคา_{clean_customer}_{date_file}_{random_str}.pdf"
     
     st.download_button(
         label="ดาวน์โหลดไฟล์ PDF",
         data=pdf_bytes,
-        file_name=f"ใบเสนอราคา_{clean_customer}_{date_val.strftime('%d-%m-%Y')}.pdf",
+        file_name=file_name,
         mime="application/pdf"
     )
