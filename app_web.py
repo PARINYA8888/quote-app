@@ -167,6 +167,18 @@ st.markdown(f"""
         margin: 15px 0px !important;
         background-color: rgba(29, 116, 228, 0.05);
     }}
+
+    /* ล็อกให้คอลัมน์อยู่บรรทัดเดียวกันบนจอมือถือ */
+    @media screen and (max-width: 768px) {{
+        div[data-testid="stHorizontalBlock"] {{
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            gap: 0.5rem !important;
+        }}
+        div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {{
+            min-width: 0 !important;
+        }}
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -286,16 +298,10 @@ if st.button("สร้าง PDF", type="primary"):
     final_pdf = create_pdf()
     pdf_bytes = final_pdf.getvalue()
     
-    # ดึงชื่อลูกค้า และลบอักขระพิเศษที่ห้ามใช้ในการตั้งชื่อไฟล์
     clean_customer = re.sub(r'[\\/*?:"<>|]', '', customer) if customer else "ทั่วไป"
-    
-    # จัดฟอร์แมตวันที่เป็น DD-MM-YYYY
     date_file = date_val.strftime("%d-%m-%Y")
-    
-    # สุ่มรหัส 3 หลัก (อักษรภาษาอังกฤษพิมพ์ใหญ่ผสมตัวเลข)
     random_str = "".join(random.choices(string.ascii_uppercase + string.digits, k=3))
     
-    # ประกอบชื่อไฟล์
     file_name = f"ใบเสนอราคา_{clean_customer}_{date_file}_{random_str}.pdf"
     
     st.download_button(
