@@ -20,7 +20,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# ลงทะเบียนฟอนต์ภาษาไทย (ต้องมีไฟล์อยู่ในโฟลเดอร์เดียวกัน)
+# ลงทะเบียนฟอนต์ภาษาไทย
 FONT_MAIN = 'Helvetica'
 FONT_BOLD = 'Helvetica-Bold'
 
@@ -79,10 +79,12 @@ def thai_baht(num):
         return result
     except: return ""
 
-# เปลี่ยนกลับมาใช้ drawString ปกติ เพื่อดูว่าปัญหาสระซ้อนจะดีขึ้นไหมสำหรับบางฟอนต์
 def draw_thai_text(c, text, x, y, align='left', bold=False):
     c.setFont(FONT_BOLD if bold else FONT_MAIN, 10)
     c.setFillColor(HexColor(BLUE_THEME_HEX))
+    
+    # ช่วยลดสระซ้อนใน PDF
+    c.setCharSpace(0.3)
     
     if align == 'center':
         c.drawCentredString(x, y, text)
@@ -90,6 +92,8 @@ def draw_thai_text(c, text, x, y, align='left', bold=False):
         c.drawRightString(x, y, text)
     else:
         c.drawString(x, y, text)
+    
+    c.setCharSpace(0)
 
 # ==========================================
 # CSS CUSTOM
@@ -124,7 +128,6 @@ st.markdown(f"""
         border: 1px solid #28A745 !important;
     }}
 
-    /* กรอบสีน้ำเงินยาวเต็มจอ และบีบความสูงให้เท่าช่องกรอก */
     .item-label {{
         background-color: #1E3A8A;
         color: white;
@@ -159,15 +162,15 @@ st.markdown(f"""
         margin-bottom: 0px !important;
     }}
 
-    /* กรอบยอดรวมยาวเต็ม บังคับความสูง 42px เท่าช่องกรอก และจัดอักษรให้อยู่กึ่งกลาง */
     .total-box-container {{
         border: 1px solid rgba(255, 255, 255, 0.2);
         border-radius: 8px;
-        height: 42px !important;
+        height: 55px !important;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin: 10px 0px !important;
+        margin: 15px 0px !important;
+        background-color: rgba(29, 116, 228, 0.05);
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -181,17 +184,12 @@ if "row_counter" not in st.session_state:
     st.session_state["row_counter"] = 1
 
 def add_row():
-    curr_rows = st.session_state.get("rows", [0])
-    curr_counter = st.session_state.get("row_counter", 1)
-    curr_rows.append(curr_counter)
-    st.session_state["rows"] = curr_rows
-    st.session_state["row_counter"] = curr_counter + 1
+    st.session_state["rows"].append(st.session_state["row_counter"])
+    st.session_state["row_counter"] += 1
 
 def remove_row(row_id):
-    curr_rows = st.session_state.get("rows", [0])
-    if row_id in curr_rows:
-        curr_rows.remove(row_id)
-    st.session_state["rows"] = curr_rows
+    if len(st.session_state["rows"]) > 1:
+        st.session_state["rows"].remove(row_id)
 
 st.markdown('<p class="custom-header">ระบบออกใบเสนอราคา</p>', unsafe_allow_html=True)
 
@@ -203,6 +201,8 @@ with st.container(border=True):
             "บริษัท ซันเจียง เคมิคอล ไฟเบอร์ (ประเทศไทย) จำกัด",
             "UFM(THAILAND) CO.,LTD.",
             "สหกรณ์กองทุนสวนยางอำเภอบ่อทอง จำกัด",
+            "ECHO TOOLS CORPORATION(THAILAND) CO.,LTD.",
+            "DSG Advanced Material (Thailand) Co.,Ltd.",
             "ตัวเลือกอื่นๆ"
         ],
         index=None,
@@ -222,9 +222,7 @@ st.markdown('<p class="custom-header">รายละเอียดใบเส
 total_all = 0
 data_rows = []
 
-active_rows = st.session_state.get("rows", [0])
-
-for i, row_id in enumerate(active_rows):
+for i, row_id in enumerate(st.session_state["rows"]):
     with st.container(border=True):
         st.markdown(f'<div class="item-label">รายการที่ {i+1}</div>', unsafe_allow_html=True)
         item_name = st.text_input("ชื่อรายการ", key=f"name_{row_id}", placeholder="ระบุรายละเอียดงานหรือสินค้า...")
@@ -234,12 +232,8 @@ for i, row_id in enumerate(active_rows):
         unit = c2.selectbox("หน่วย", ["ชุด", "ตัว", "ชิ้น", "อัน"], index=None, placeholder="เลือกหน่วย", key=f"unit_{row_id}")
         price = c3.number_input("ราคาต่อหน่วย", min_value=0.0, value=None, format="%g", key=f"price_{row_id}")
 
-        total_row = 0
         if qty is not None and price is not None:
             total_row = qty * price
-            
-        if total_row > 0:
-            st.info(f"ยอดรวมรายการนี้: **{format_number(total_row)}** บาท")
             total_all += total_row
             data_rows.append({"item": item_name, "qty": qty, "unit": unit if unit else "", "price": price, "total": total_row})
 
@@ -250,13 +244,12 @@ st.markdown('<span id="green-btn"></span>', unsafe_allow_html=True)
 st.button("เพิ่มรายการใหม่", on_click=add_row)
 
 st.write("---")
-
 note = st.text_input("หมายเหตุ", placeholder="ระบุเงื่อนไขเพิ่มเติม (ถ้ามี)")
 
-# แสดงผลแค่ตัวเลขยอดรวม ไม่แสดงภาษาไทยบนหน้าเว็บ
+# กรอบยอดรวม สูง 55px
 st.markdown(f"""
 <div class="total-box-container">
-    <h4 style='color: #1E3A8A; margin: 0;'>ยอดรวมทั้งสิ้น: <span style='color: #3380FF;'>{format_number(total_all)} บาท</span></h4>
+    <h3 style='color: #1E3A8A; margin: 0; font-size: 22px;'>ยอดรวมทั้งสิ้น: <span style='color: #3380FF;'>{format_number(total_all)} บาท</span></h3>
 </div>
 """, unsafe_allow_html=True)
 
@@ -269,7 +262,6 @@ def create_pdf():
     if os.path.exists("template.jpg"):
         c.drawImage("template.jpg", 0, 0, 595, 842)
     
-    # พล็อตตัวหนังสือแบบปกติ ไม่หนา
     draw_thai_text(c, customer, X_NAME, Y_NAME, bold=False)
     draw_thai_text(c, date_str, X_DATE, Y_DATE, bold=False)
 
@@ -277,19 +269,14 @@ def create_pdf():
     for i, r in enumerate(data_rows):
         draw_thai_text(c, str(i+1), X_NO, y, align='center', bold=False)
         draw_thai_text(c, r['item'], X_ITEM, y, bold=False)
-        
         if r["qty"]: draw_thai_text(c, str(r["qty"]), X_QTY, y, align='center', bold=False)
         if r["unit"]: draw_thai_text(c, r["unit"], X_UNIT, y, align='center', bold=False)
         if r["price"]: draw_thai_text(c, format_number(r["price"]), X_PRICE, y, align='right', bold=False)
         if r["total"]: draw_thai_text(c, format_number(r["total"]), X_TOTAL, y, align='right', bold=False)
-        
         y -= 20
 
     draw_thai_text(c, format_number(total_all), X_SUM, Y_SUM, align='right', bold=False)
-    
-    # พล็อตตัวหนังสือภาษาไทยลงใน PDF เหมือนเดิม
     draw_thai_text(c, thai_baht(total_all), X_SUM_TEXT - 250, Y_SUM_TEXT, align='right', bold=False)
-    
     if note:
         draw_thai_text(c, note, X_NOTE, Y_NOTE, bold=False)
         
@@ -304,15 +291,11 @@ st.write("")
 if st.button("สร้าง PDF", type="primary"):
     final_pdf = create_pdf()
     pdf_bytes = final_pdf.getvalue()
-    
     clean_customer = re.sub(r'[\\/*?:"<>|]', '', customer) if customer else "ทั่วไป"
-    random_str = "".join(random.choices(string.ascii_uppercase + string.digits, k=3))
-    date_for_file = date_val.strftime("%d-%m-%Y")
-    file_name = f"ใบเสนอราคา_{clean_customer}_{date_for_file}_{random_str}.pdf"
     
     st.download_button(
-        label="ดาวน์โหลดไฟล์ PDF",
+        label="📥 ดาวน์โหลดไฟล์ PDF",
         data=pdf_bytes,
-        file_name=file_name,
+        file_name=f"ใบเสนอราคา_{clean_customer}_{date_val.strftime('%d-%m-%Y')}.pdf",
         mime="application/pdf"
     )
