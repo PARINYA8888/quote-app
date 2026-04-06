@@ -13,7 +13,7 @@ import re
 
 # ==========================================
 # CONFIGURATION & THEME
-# ==========================================
+# ==========================
 st.set_page_config(
     page_title="ระบบออกใบเสนอราคาโรงกลึงช่างมนญบ่อทอง",
     layout="centered",
@@ -98,36 +98,41 @@ st.markdown(f"""
     [data-testid="stSidebar"] {{display: none;}}
     .stButton>button {{width: 100%; border-radius: 8px; font-weight: bold; transition: 0.3s;}}
     
-    /* ซ่อนปุ่มบวก/ลบ ในช่องตัวเลขเพื่อประหยัดพื้นที่ */
     [data-testid="stNumberInputStepUp"], [data-testid="stNumberInputStepDown"] {{
         display: none !important;
     }}
     
+    input[type=number]::-webkit-inner-spin-button, 
+    input[type=number]::-webkit-outer-spin-button {{ 
+        -webkit-appearance: none; 
+        margin: 0; 
+    }}
     input[type=number] {{
         -moz-appearance: textfield;
-        padding: 5px !important;
     }}
 
-    /* ปรับแต่งสีปุ่ม */
     div:has(span#red-btn) + div button {{
         background-color: #FF4B4B !important;
         color: white !important;
+        border: 1px solid #FF4B4B !important;
     }}
 
     div:has(span#green-btn) + div button {{
         background-color: #28A745 !important;
         color: white !important;
+        border: 1px solid #28A745 !important;
     }}
 
     .item-label {{
         background-color: #1E3A8A;
         color: white;
-        padding: 5px !important;
+        padding: 5px 12px !important;
         border-radius: 6px;
-        font-size: 14px !important;
-        margin-bottom: 8px !important;
-        text-align: center;
         font-weight: bold;
+        text-align: center;
+        font-size: 16px !important;
+        margin-bottom: 12px !important;
+        box-shadow: 0px 2px 4px rgba(0,0,0,0.1);
     }}
 
     .custom-header {{
@@ -161,35 +166,6 @@ st.markdown(f"""
         justify-content: center;
         margin: 15px 0px !important;
         background-color: rgba(29, 116, 228, 0.05);
-    }}
-
-    /* บังคับ Column ให้อยู่บรรทัดเดียวกันและไม่ล้นจอบนมือถือ */
-    @media screen and (max-width: 768px) {{
-        /* บังคับแถวห้ามตัดขึ้นบรรทัดใหม่ */
-        div[data-testid="stHorizontalBlock"] {{
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
-            gap: 4px !important; /* ลดระยะห่างระหว่างช่อง */
-        }}
-        
-        /* บังคับความกว้างแต่ละคอลัมน์ (จำนวน, หน่วย, ราคา) */
-        div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {{
-            width: 33% !important; 
-            min-width: 0 !important;
-            flex: 1 1 auto !important;
-        }}
-
-        /* ย่อขนาดตัวอักษรของ Label (จำนวน, หน่วย, ราคา) ให้เล็กลงเพื่อประหยัดพื้นที่ */
-        div[data-testid="stHorizontalBlock"] label p {{
-            font-size: 12px !important;
-            white-space: nowrap !important;
-        }}
-        
-        /* ย่อขนาดกล่อง Input */
-        div[data-testid="stHorizontalBlock"] input {{
-            font-size: 14px !important;
-            padding: 2px 5px !important;
-        }}
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -246,9 +222,9 @@ for i, row_id in enumerate(st.session_state["rows"]):
         st.markdown(f'<div class="item-label">รายการที่ {i+1}</div>', unsafe_allow_html=True)
         item_name = st.text_input("ชื่อรายการ", key=f"name_{row_id}", placeholder="ระบุรายละเอียดงานหรือสินค้า...")
         
-        c1, c2, c3 = st.columns([1, 1, 1]) # ปรับคอลัมน์ให้แบ่งพื้นที่เท่ากัน 1:1:1
+        c1, c2, c3 = st.columns([1, 1.2, 1.5])
         qty = c1.number_input("จำนวน", min_value=1, value=None, step=1, format="%d", key=f"qty_{row_id}")
-        unit = c2.selectbox("หน่วย", ["ชุด", "ตัว", "ชิ้น", "อัน"], index=None, placeholder="เลือก", key=f"unit_{row_id}")
+        unit = c2.selectbox("หน่วย", ["ชุด", "ตัว", "ชิ้น", "อัน"], index=None, placeholder="เลือกหน่วย", key=f"unit_{row_id}")
         price = c3.number_input("ราคาต่อหน่วย", min_value=0.0, value=None, format="%g", key=f"price_{row_id}")
 
         if qty is not None and price is not None:
@@ -310,10 +286,16 @@ if st.button("สร้าง PDF", type="primary"):
     final_pdf = create_pdf()
     pdf_bytes = final_pdf.getvalue()
     
+    # ดึงชื่อลูกค้า และลบอักขระพิเศษที่ห้ามใช้ในการตั้งชื่อไฟล์
     clean_customer = re.sub(r'[\\/*?:"<>|]', '', customer) if customer else "ทั่วไป"
+    
+    # จัดฟอร์แมตวันที่เป็น DD-MM-YYYY
     date_file = date_val.strftime("%d-%m-%Y")
+    
+    # สุ่มรหัส 3 หลัก (อักษรภาษาอังกฤษพิมพ์ใหญ่ผสมตัวเลข)
     random_str = "".join(random.choices(string.ascii_uppercase + string.digits, k=3))
     
+    # ประกอบชื่อไฟล์
     file_name = f"ใบเสนอราคา_{clean_customer}_{date_file}_{random_str}.pdf"
     
     st.download_button(
